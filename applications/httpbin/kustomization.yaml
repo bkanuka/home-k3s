@@ -5,5 +5,5 @@ resources:
 - namespace.yaml
 - deployment.yaml
 - service.yaml
-# NOTE: the Gateway lives in ../gateway and is shared by all services.
+# NOTE: the shared Gateway is a core service (see /gateway), not part of this app.
 - httproute.yaml

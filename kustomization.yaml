@@ -1,12 +1,17 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-# NOTE: Run via install.sh which applies components in dependency order.
-# Direct `kustomize build --enable-helm .` will work but requires
-# CRDs (Gateway API, MetalLB, Istio) to already be present in the cluster.
+# CORE platform only. These are bootstrapped imperatively by install.sh (in
+# dependency order) and are NOT managed by Argo CD.
+#
+# Applications (httpbin, and future services like plex/sonarr/radarr) live under
+# applications/ and are deployed by Argo CD from git — deliberately excluded here
+# so a `kustomize build .` of the core platform never touches user services.
+#
+# Direct `kustomize build --enable-helm .` works but requires the CRDs
+# (Gateway API, MetalLB, Istio) to already be present in the cluster.
 resources:
 - https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.4.0/experimental-install.yaml
 - metallb/
 - istio/
 - gateway/   # single shared Gateway used by every service
-- httpbin/

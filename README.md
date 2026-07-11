@@ -11,6 +11,9 @@ Unlike a stock k3s install, this cluster swaps out the bundled components:
 - **[MetalLB](https://metallb.universe.org/)** instead of k3s's ServiceLB
   (`klipper-lb`) for bare-metal `LoadBalancer` services, handing out real IPs
   from your LAN.
+- **[Argo CD](https://argo-cd.readthedocs.io/)** for GitOps — it watches this
+  repo's `applications/` directory and continuously reconciles the cluster to
+  match, so deploying a service is just pushing a commit.
 
 ## Architecture
 
@@ -42,16 +45,37 @@ LAN client ──▶ MetalLB (L2, 192.168.1.200-220)
   per-node DaemonSet for L4 traffic. Namespaces opt in with the
   `istio.io/dataplane-mode: ambient` label.
 
+### Core platform vs. applications (GitOps boundary)
+
+There is a deliberate split in how things are deployed:
+
+| Layer | What | How it's deployed |
+| ----- | ---- | ----------------- |
+| **Core platform** | k3s, Gateway API CRDs, MetalLB, Istio, the shared Gateway, Argo CD itself | Bootstrapped **imperatively by `install.sh`**. Not managed by Argo CD. |
+| **Applications** | Everything under `applications/` (httpbin, and future Plex/Sonarr/Radarr) | Managed by **Argo CD from git**. |
+
+```
+git push ──▶ Argo CD (watches applications/*) ──▶ syncs one Application per folder
+                                                        │
+                                                        ▼
+                                          Deployment + Service + HTTPRoute
+```
+
+Argo CD only ever touches `applications/`. It never manages MetalLB, Istio, the
+Gateway, or itself — so a bad app sync can't take down the networking core.
+
 ## Repository layout
 
 | Path            | Purpose                                                            |
 | --------------- | ----------------------------------------------------------------- |
-| `install.sh`    | End-to-end installer — run this to build the whole cluster.        |
-| `kustomization.yaml` | Root kustomization referencing all components in dep order.   |
+| `install.sh`    | End-to-end installer — bootstraps the core platform + Argo CD.     |
+| `kustomization.yaml` | Root kustomization for the **core platform only**.            |
 | `metallb/`      | MetalLB manifests + `config.yaml` (IP pool & L2 advertisement).    |
 | `istio/`        | Istio ambient install via Helm charts inflated by kustomize.       |
 | `gateway/`      | The single **shared Gateway** (`home-gateway`) used by all services. |
-| `httpbin/`      | Sample app demonstrating an `HTTPRoute` attached to the shared Gateway. |
+| `argocd/`       | Argo CD `ApplicationSet` that watches `applications/*`.            |
+| `applications/` | **GitOps-managed services.** One folder per app; Argo CD deploys each. |
+| `applications/httpbin/` | Sample app — an `HTTPRoute` attached to the shared Gateway. |
 
 ## Versions
 
@@ -63,6 +87,7 @@ Pinned in `install.sh`:
 | Istio         | 1.29.2    |
 | Gateway API   | v1.4.0    |
 | MetalLB       | v0.16.0   |
+| Argo CD       | v3.4.5    |
 
 ## Prerequisites
 
@@ -98,7 +123,10 @@ The script is idempotent and, in order:
 4. Installs and configures MetalLB.
 5. Installs Istio in ambient mode.
 6. Creates the single shared `home-gateway`.
-7. Deploys the `httpbin` sample app and waits for it to be ready.
+7. Installs Argo CD and registers the `applications/` `ApplicationSet`.
+
+After that, **Argo CD** deploys everything under `applications/` (including the
+`httpbin` sample) directly from git.
 
 `kubeconfig` is written to `/etc/rancher/k3s/k3s.yaml`:
 
@@ -106,10 +134,42 @@ The script is idempotent and, in order:
 export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 ```
 
+## GitOps with Argo CD
+
+Once installed, Argo CD watches the `applications/*` directories in this repo. An
+`ApplicationSet` ([`argocd/applicationset.yaml`](argocd/applicationset.yaml))
+turns **each subfolder into an Argo CD `Application`** that is synced with
+`prune` + `selfHeal` enabled — so the cluster always matches git, and manual
+`kubectl` drift gets reverted.
+
+Access the Argo CD UI:
+
+```bash
+# initial admin password
+kubectl -n argocd get secret argocd-initial-admin-secret \
+  -o jsonpath='{.data.password}' | base64 -d; echo
+
+kubectl port-forward -n argocd svc/argocd-server 8080:443
+# open https://localhost:8080  (user: admin)
+```
+
+> **⚠️ Private repo access.** This repo is **private**, so Argo CD needs
+> credentials to read it. Either make the repo public (it contains no secrets —
+> only private LAN IPs), or register a repository credential in Argo CD:
+>
+> ```bash
+> # using a GitHub personal access token with 'repo' scope
+> argocd repo add https://github.com/bkanuka/home-k3s.git \
+>   --username bkanuka --password <TOKEN>
+> ```
+>
+> Until Argo CD can read the repo, the `ApplicationSet` will produce no
+> Applications.
+
 ## Verify
 
-When the install finishes it prints the Gateway's assigned IP. Test the sample
-app:
+The Argo CD UI (or `kubectl get applications -n argocd`) shows the `httpbin`
+Application as `Synced`/`Healthy`. Then test it through the shared gateway:
 
 ```bash
 GW_IP=$(kubectl get svc -n istio-system home-gateway-istio \
@@ -122,17 +182,20 @@ through it.
 
 ## Adding a service
 
-To expose a new service (e.g. Plex, Sonarr, Radarr): reuse the shared
-`home-gateway` — do **not** create a new Gateway (that would consume another
-MetalLB IP and defeats the single-entrypoint design).
+Deploying a new service (e.g. Plex, Sonarr, Radarr) is a **git operation** — no
+`kubectl apply`, and no new Gateway (that would consume another MetalLB IP and
+defeats the single-entrypoint design). Reuse the shared `home-gateway`.
 
-1. Create a namespace labeled `istio.io/dataplane-mode: ambient` so its pods are
-   enrolled in the ambient mesh.
-2. Deploy the app's `Deployment` and `Service`.
-3. Add an `HTTPRoute` whose `parentRef` points at `home-gateway` in
-   `istio-system`, and use host/path rules to select the traffic for this
-   service (see [`httpbin/httproute.yaml`](httpbin/httproute.yaml) for a working
-   example).
+1. Create a folder `applications/<name>/` with a `kustomization.yaml`.
+2. In it, define:
+   - a namespace labeled `istio.io/dataplane-mode: ambient` (enrolls pods in the
+     ambient mesh),
+   - the app's `Deployment` and `Service`,
+   - an `HTTPRoute` whose `parentRef` points at `home-gateway` in `istio-system`,
+     using host/path rules to select this service's traffic.
+   Copy [`applications/httpbin/`](applications/httpbin/) as a working template.
+3. `git commit` and `git push`.
 
-All services share the single `home-gateway` IP; routing is done by the
-`HTTPRoute` rules, not by separate load-balancer IPs.
+Argo CD detects the new folder, creates an `Application`, and deploys it. All
+services share the single `home-gateway` IP; routing is done by the `HTTPRoute`
+rules, not by separate load-balancer IPs.

@@ -1,0 +1,36 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: applications
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+  # Scan the repo for every subdirectory under applications/ and create one
+  # Argo CD Application per directory. Drop a new folder in applications/,
+  # push, and Argo CD deploys it automatically — no changes here needed.
+  - git:
+      repoURL: https://github.com/bkanuka/home-k3s.git
+      revision: main
+      directories:
+      - path: applications/*
+  template:
+    metadata:
+      # Application named after the folder, e.g. applications/httpbin -> "httpbin"
+      name: '{{.path.basename}}'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/bkanuka/home-k3s.git
+        targetRevision: main
+        path: '{{.path.path}}'
+      destination:
+        server: https://kubernetes.default.svc
+      syncPolicy:
+        # GitOps: continuously reconcile the cluster to match git.
+        automated:
+          prune: true      # delete resources removed from git
+          selfHeal: true   # revert manual drift back to git state
+        syncOptions:
+        - CreateNamespace=true

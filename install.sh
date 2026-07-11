@@ -5,6 +5,7 @@ KUSTOMIZE_VERSION="5.4.3"
 ISTIO_VERSION="1.29.2"
 GATEWAY_API_VERSION="v1.4.0"
 METALLB_VERSION="v0.16.0"
+ARGOCD_VERSION="v3.4.5"
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -95,13 +96,25 @@ kubectl rollout status daemonset/istio-cni-node -n kube-system --timeout=300s
 echo "==> Installing shared gateway..."
 kustomize build "$DIR/gateway" | kubectl apply -f -
 
-# ── httpbin ───────────────────────────────────────────────────────────────────
-echo "==> Installing httpbin..."
-kustomize build "$DIR/httpbin" | kubectl apply -f -
+# ── Argo CD ─────────────────────────────────────────────────────────────────────
+# Argo CD is a core service (bootstrapped here, not GitOps-managed). Once running,
+# it watches the repo's applications/ directory and deploys everything in there.
+# --server-side avoids the annotation size limit on the large install manifest.
+echo "==> Installing Argo CD ${ARGOCD_VERSION}..."
+kubectl get namespace argocd >/dev/null 2>&1 || kubectl create namespace argocd
+kubectl apply -n argocd --server-side --force-conflicts \
+    -f "https://raw.githubusercontent.com/argoproj/argo-cd/${ARGOCD_VERSION}/manifests/install.yaml"
 
-echo "    Waiting for httpbin deployment..."
-kubectl wait --for=condition=Available deployment/httpbin \
-    -n httpbin --timeout=180s
+echo "    Waiting for Argo CD server..."
+kubectl wait --for=condition=Available deployment/argocd-server \
+    -n argocd --timeout=300s
+kubectl wait --for=condition=Available deployment/argocd-applicationset-controller \
+    -n argocd --timeout=180s
+
+echo "==> Registering the applications/ ApplicationSet..."
+# From here on, services in applications/ are managed by Argo CD via git — not
+# by this script. Push a change and Argo CD reconciles the cluster to match.
+kubectl apply -f "$DIR/argocd/applicationset.yaml"
 
 # ── Summary ───────────────────────────────────────────────────────────────────
 echo ""
@@ -113,6 +126,16 @@ echo ""
 echo "Gateway IP (may take a moment for MetalLB to assign):"
 kubectl get svc -n istio-system home-gateway-istio -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null && echo || true
 echo ""
-echo "Test with:"
+echo "Applications (managed by Argo CD):"
+kubectl get applications -n argocd 2>/dev/null || echo "  (Argo CD is still syncing; check again shortly)"
+echo ""
+echo "Argo CD admin password:"
+kubectl -n argocd get secret argocd-initial-admin-secret \
+    -o jsonpath='{.data.password}' 2>/dev/null | base64 -d 2>/dev/null && echo || echo "  (not available yet)"
+echo "Access the Argo CD UI with:"
+echo "  kubectl port-forward -n argocd svc/argocd-server 8080:443"
+echo "  # then open https://localhost:8080  (user: admin)"
+echo ""
+echo "Test httpbin once Argo CD has synced it:"
 GW_IP=$(kubectl get svc -n istio-system home-gateway-istio -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "<GATEWAY-IP>")
 echo "  curl http://${GW_IP}/get"

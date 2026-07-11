@@ -1,11 +1,11 @@
+# Strategic-merge patch: adds these keys to the upstream argocd-cmd-params-cm
+# (does not replace it — its other keys are left intact). argocd-server reads
+# these via env vars, so a fresh pod picks them up; changing them later needs an
+# argocd-server restart to take effect.
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: argocd-cmd-params-cm
-  namespace: argocd
-  labels:
-    app.kubernetes.io/name: argocd-cmd-params-cm
-    app.kubernetes.io/part-of: argocd
 data:
   # Serve plain HTTP (no self-signed TLS): the Istio gateway fronts Argo CD on
   # its HTTP :80 listener and talks to argocd-server's http port.

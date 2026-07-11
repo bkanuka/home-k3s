@@ -5,7 +5,7 @@ KUSTOMIZE_VERSION="5.4.3"
 ISTIO_VERSION="1.29.2"
 GATEWAY_API_VERSION="v1.4.0"
 METALLB_VERSION="v0.16.0"
-ARGOCD_VERSION="v3.4.5"
+# Argo CD version is pinned in argocd/kustomization.yaml (it is GitOps-managed).
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -92,30 +92,21 @@ echo "==> Installing shared gateway..."
 kustomize build "$DIR/gateway" | kubectl apply -f -
 
 # ── Argo CD ─────────────────────────────────────────────────────────────────────
-# Argo CD is a core service (bootstrapped here, not GitOps-managed). Once running,
-# it watches the repo's applications/ directory and deploys everything in there.
+# One-time bootstrap of Argo CD via kustomize (install manifest + /argocd config
+# + HTTPRoute + ApplicationSet + a self-managing Application). After this, the
+# `argocd` Application reconciles the argocd/ directory from git — so changes to
+# Argo CD's own config/route/version sync automatically, no re-run of this script.
 # --server-side avoids the annotation size limit on the large install manifest.
-echo "==> Installing Argo CD ${ARGOCD_VERSION}..."
-kubectl get namespace argocd >/dev/null 2>&1 || kubectl create namespace argocd
-kubectl apply -n argocd --server-side --force-conflicts \
-    -f "https://raw.githubusercontent.com/argoproj/argo-cd/${ARGOCD_VERSION}/manifests/install.yaml"
-
-# Serve Argo CD over HTTP under the /argocd subpath so it rides the shared
-# gateway. Changing cmd-params requires an argocd-server restart to take effect.
-echo "==> Configuring Argo CD to serve under /argocd..."
-kubectl apply -n argocd --server-side --force-conflicts -f "$DIR/argocd/cmd-params-cm.yaml"
-kubectl rollout restart deployment/argocd-server -n argocd
+echo "==> Bootstrapping Argo CD (kustomize)..."
+kustomize build "$DIR/argocd" | kubectl apply --server-side --force-conflicts -f -
 
 echo "    Waiting for Argo CD server..."
 kubectl rollout status deployment/argocd-server -n argocd --timeout=300s
 kubectl wait --for=condition=Available deployment/argocd-applicationset-controller \
     -n argocd --timeout=180s
 
-echo "==> Exposing Argo CD at /argocd and registering the applications/ ApplicationSet..."
-# From here on, services in applications/ are managed by Argo CD via git — not
-# by this script. Push a change and Argo CD reconciles the cluster to match.
-kubectl apply -f "$DIR/argocd/httproute.yaml"
-kubectl apply -f "$DIR/argocd/applicationset.yaml"
+# From here on, services in applications/ are managed by Argo CD via git, and so
+# is Argo CD itself. Push a change and Argo CD reconciles the cluster to match.
 
 # ── Summary ───────────────────────────────────────────────────────────────────
 echo ""

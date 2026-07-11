@@ -56,18 +56,22 @@ There is a deliberate split in how things are deployed:
 
 | Layer | What | How it's deployed |
 | ----- | ---- | ----------------- |
-| **Core platform** | k3s, Gateway API CRDs, MetalLB, Istio, the shared Gateway, Argo CD itself | Bootstrapped **imperatively by `install.sh`**. Not managed by Argo CD. |
+| **Core platform** | k3s, Gateway API CRDs, MetalLB, Istio, the shared Gateway | Bootstrapped **imperatively by `install.sh`**. Not managed by Argo CD. |
+| **Argo CD** | Argo CD itself + its `/argocd` route/config | **Bootstrapped once** by `install.sh`, then **self-managed** via git (`argocd/`). |
 | **Applications** | Everything under `applications/` (httpbin, and future Plex/Sonarr/Radarr) | Managed by **Argo CD from git**. |
 
 ```
-git push ──▶ Argo CD (watches applications/*) ──▶ syncs one Application per folder
+git push ──▶ Argo CD ──┬─ watches applications/*  ──▶ one Application per folder
+                       └─ watches argocd/          ──▶ manages Argo CD itself
                                                         │
                                                         ▼
                                           Deployment + Service + HTTPRoute
 ```
 
-Argo CD only ever touches `applications/`. It never manages MetalLB, Istio, the
-Gateway, or itself — so a bad app sync can't take down the networking core.
+Argo CD manages `applications/` **and its own `argocd/` directory**, but never
+touches MetalLB, Istio, or the Gateway — so a bad app sync can't take down the
+networking core. Argo CD is bootstrapped once (`install.sh`) and thereafter
+reconciles itself from git via a self-managing `Application`.
 
 ## Repository layout
 
@@ -78,7 +82,7 @@ Gateway, or itself — so a bad app sync can't take down the networking core.
 | `metallb/`      | MetalLB manifests + `config.yaml` (IP pool & L2 advertisement).    |
 | `istio/`        | Istio (ingress-only) install via Helm charts inflated by kustomize. |
 | `gateway/`      | The single **shared Gateway** (`home-gateway`) used by all services. |
-| `argocd/`       | Argo CD `ApplicationSet` that watches `applications/*`.            |
+| `argocd/`       | Self-managed Argo CD: kustomize install + `/argocd` config + HTTPRoute + `ApplicationSet` + the self-managing `Application`. |
 | `applications/` | **GitOps-managed services.** One folder per app; Argo CD deploys each. |
 | `applications/httpbin/` | Sample app — an `HTTPRoute` attached to the shared Gateway. |
 
@@ -92,7 +96,7 @@ Pinned in `install.sh`:
 | Istio         | 1.29.2    |
 | Gateway API   | v1.4.0    |
 | MetalLB       | v0.16.0   |
-| Argo CD       | v3.4.5    |
+| Argo CD       | v3.4.5 *(pinned in `argocd/kustomization.yaml`, since Argo CD is GitOps-managed)* |
 
 ## Prerequisites
 
@@ -128,10 +132,11 @@ The script is idempotent and, in order:
 4. Installs and configures MetalLB.
 5. Installs Istio (ingress-only — control plane + Gateway API).
 6. Creates the single shared `home-gateway`.
-7. Installs Argo CD and registers the `applications/` `ApplicationSet`.
+7. Bootstraps Argo CD from `argocd/` (one `kustomize build | kubectl apply`),
+   which also installs its self-managing `Application`.
 
 After that, **Argo CD** deploys everything under `applications/` (including the
-`httpbin` sample) directly from git.
+`httpbin` sample) directly from git, and reconciles its own `argocd/` directory.
 
 `kubeconfig` is written to `/etc/rancher/k3s/k3s.yaml`:
 
@@ -147,10 +152,22 @@ turns **each subfolder into an Argo CD `Application`** that is synced with
 `prune` + `selfHeal` enabled — so the cluster always matches git, and manual
 `kubectl` drift gets reverted.
 
-Argo CD is itself exposed **through the shared gateway** at `/argocd`
-([`argocd/httproute.yaml`](argocd/httproute.yaml)). It runs in insecure/HTTP mode
-under that subpath ([`argocd/cmd-params-cm.yaml`](argocd/cmd-params-cm.yaml)) so
-it can share the single gateway IP with every other service.
+**Argo CD manages itself, too.** `install.sh` bootstraps `argocd/` with a single
+`kustomize build | kubectl apply`, which includes a self-managing `Application`
+([`argocd/application.yaml`](argocd/application.yaml)) pointed at the `argocd/`
+directory. After that, edits to Argo CD's install version, HTTPRoute, or config
+are reconciled from git — no need to re-run `install.sh`.
+
+> **Config changes needing a restart:** the `/argocd` subpath and insecure
+> settings ([`argocd/cmd-params-patch.yaml`](argocd/cmd-params-patch.yaml)) are
+> read by `argocd-server` at startup. Argo CD will sync a change to them, but
+> `argocd-server` won't pick it up until it restarts
+> (`kubectl rollout restart deploy/argocd-server -n argocd`). Route changes in
+> [`argocd/httproute.yaml`](argocd/httproute.yaml) take effect immediately.
+
+Argo CD is exposed **through the shared gateway** at `/argocd`
+([`argocd/httproute.yaml`](argocd/httproute.yaml)), running in insecure/HTTP mode
+under that subpath so it can share the single gateway IP with every other service.
 
 ```bash
 # initial admin password

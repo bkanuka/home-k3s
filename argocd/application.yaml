@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd
+  namespace: argocd
+spec:
+  project: default
+  # Argo CD manages itself: this Application points at this very directory, so
+  # edits to the install version, cmd-params, HTTPRoute, or ApplicationSet are
+  # reconciled from git after the initial bootstrap.
+  source:
+    repoURL: https://github.com/bkanuka/home-k3s.git
+    targetRevision: main
+    path: argocd
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    # The upstream install manifest has CRDs too large for client-side apply's
+    # last-applied annotation, so Argo CD must use server-side apply here too.
+    - ServerSideApply=true
+    - CreateNamespace=true

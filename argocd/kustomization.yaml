@@ -1,0 +1,29 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: argocd
+
+# Everything Argo CD needs, as one kustomize build:
+#   - the upstream install manifest (pinned version)
+#   - the /argocd subpath + insecure config (patched into argocd-cmd-params-cm)
+#   - the gateway HTTPRoute exposing it at /argocd
+#   - the ApplicationSet that deploys applications/*
+#   - the self-managing Argo CD Application (see application.yaml)
+#
+# install.sh does ONE server-side apply of this to bootstrap. After that the
+# `argocd` Application (application.yaml) reconciles this same directory from
+# git, so edits here (httproute, config, version bump) sync automatically.
+resources:
+- namespace.yaml
+- https://raw.githubusercontent.com/argoproj/argo-cd/v3.4.5/manifests/install.yaml
+- httproute.yaml
+- applicationset.yaml
+- application.yaml
+
+patches:
+# Serve Argo CD over HTTP under /argocd (see comments in the patch file).
+# Merged into the upstream argocd-cmd-params-cm, leaving its other keys intact.
+- path: cmd-params-patch.yaml
+  target:
+    kind: ConfigMap
+    name: argocd-cmd-params-cm

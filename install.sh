@@ -50,8 +50,11 @@ else
 fi
 
 # ── Gateway API CRDs ──────────────────────────────────────────────────────────
+# --server-side avoids the 256KB last-applied-configuration annotation limit
+# that client-side apply hits on the large httproutes CRD.
 echo "==> Applying Gateway API CRDs ${GATEWAY_API_VERSION}..."
-kubectl apply -f "https://github.com/kubernetes-sigs/gateway-api/releases/download/${GATEWAY_API_VERSION}/experimental-install.yaml"
+kubectl apply --server-side --force-conflicts \
+    -f "https://github.com/kubernetes-sigs/gateway-api/releases/download/${GATEWAY_API_VERSION}/experimental-install.yaml"
 
 # ── MetalLB ───────────────────────────────────────────────────────────────────
 echo "==> Installing MetalLB ${METALLB_VERSION}..."

@@ -6,7 +6,8 @@ metadata:
 spec:
   parentRefs:
   # Attach to the single shared gateway, same as every other service.
-  - name: home-gateway
+  - group: gateway.networking.k8s.io
+    name: home-gateway
     namespace: istio-system
     kind: Gateway
   rules:
@@ -16,5 +17,7 @@ spec:
         value: /argocd
     backendRefs:
     # argocd-server's http port (plain HTTP because server.insecure=true).
-    - name: argocd-server
+    - group: ''
+      kind: Service
+      name: argocd-server
       port: 80

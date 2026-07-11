@@ -6,8 +6,9 @@ as the platform for self-hosted services such as **Plex**, **Sonarr**, and
 
 Unlike a stock k3s install, this cluster swaps out the bundled components:
 
-- **[Istio](https://istio.io/) (ambient mode)** instead of Traefik for ingress
-  and service networking, via the Kubernetes **Gateway API**.
+- **[Istio](https://istio.io/)** instead of Traefik for ingress, via the
+  Kubernetes **Gateway API**. Runs **ingress-only** (control plane + Gateway) —
+  no mesh data plane (no sidecars, no ambient/ztunnel, no istio-cni).
 - **[MetalLB](https://metallb.universe.org/)** instead of k3s's ServiceLB
   (`klipper-lb`) for bare-metal `LoadBalancer` services, handing out real IPs
   from your LAN.
@@ -27,7 +28,7 @@ LAN client ──▶ MetalLB (L2, 192.168.1.200-220)
                  │ HTTPRoute    HTTPRoute    HTTPRoute    HTTPRoute
                  │ (plex)       (sonarr)     (radarr)     (httpbin)
                  ▼
-            Service ──▶ Pod (in an ambient-enabled namespace)
+            Service ──▶ Pod
 ```
 
 > **One shared Gateway for everything.** The cluster has a *single* Gateway
@@ -40,10 +41,14 @@ LAN client ──▶ MetalLB (L2, 192.168.1.200-220)
 - **Gateway API** CRDs (experimental channel) provide `Gateway` / `HTTPRoute`.
 - **MetalLB** runs in L2 mode and advertises an address pool on the local
   network.
-- **Istio ambient mode** is used (no per-pod sidecars): `istiod` control plane,
-  the `istio-cni` plugin (with k3s-specific CNI paths), and the `ztunnel`
-  per-node DaemonSet for L4 traffic. Namespaces opt in with the
-  `istio.io/dataplane-mode: ambient` label.
+- **Istio** runs **ingress-only**: just the `istiod` control plane, which
+  reconciles Gateway API resources and deploys the gateway's Envoy proxy. There
+  is **no mesh data plane** — no sidecars, no ambient `ztunnel`, no `istio-cni`.
+  The gateway routes to plain `ClusterIP` services; pods need no special labels.
+  - *Why no mesh?* The mesh only adds pod-to-pod mTLS/policy, which is overkill
+    for a home lab. Gateway-level auth (JWT / ext_authz) is enforced on the
+    gateway proxy and does **not** require the mesh, so it can be added later
+    without reintroducing ambient or sidecars.
 
 ### Core platform vs. applications (GitOps boundary)
 
@@ -71,7 +76,7 @@ Gateway, or itself — so a bad app sync can't take down the networking core.
 | `install.sh`    | End-to-end installer — bootstraps the core platform + Argo CD.     |
 | `kustomization.yaml` | Root kustomization for the **core platform only**.            |
 | `metallb/`      | MetalLB manifests + `config.yaml` (IP pool & L2 advertisement).    |
-| `istio/`        | Istio ambient install via Helm charts inflated by kustomize.       |
+| `istio/`        | Istio (ingress-only) install via Helm charts inflated by kustomize. |
 | `gateway/`      | The single **shared Gateway** (`home-gateway`) used by all services. |
 | `argocd/`       | Argo CD `ApplicationSet` that watches `applications/*`.            |
 | `applications/` | **GitOps-managed services.** One folder per app; Argo CD deploys each. |
@@ -121,7 +126,7 @@ The script is idempotent and, in order:
 2. Installs `kustomize` and `helm` if missing.
 3. Applies the Gateway API CRDs.
 4. Installs and configures MetalLB.
-5. Installs Istio in ambient mode.
+5. Installs Istio (ingress-only — control plane + Gateway API).
 6. Creates the single shared `home-gateway`.
 7. Installs Argo CD and registers the `applications/` `ApplicationSet`.
 
@@ -188,8 +193,7 @@ defeats the single-entrypoint design). Reuse the shared `home-gateway`.
 
 1. Create a folder `applications/<name>/` with a `kustomization.yaml`.
 2. In it, define:
-   - a namespace labeled `istio.io/dataplane-mode: ambient` (enrolls pods in the
-     ambient mesh),
+   - a namespace for the app,
    - the app's `Deployment` and `Service`,
    - an `HTTPRoute` whose `parentRef` points at `home-gateway` in `istio-system`,
      using host/path rules to select this service's traffic.

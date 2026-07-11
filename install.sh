@@ -74,8 +74,9 @@ until kubectl apply -f "$DIR/metallb/config.yaml" 2>/dev/null; do
     sleep 3
 done
 
-# ── Istio Ambient Mode ────────────────────────────────────────────────────────
-echo "==> Installing Istio ${ISTIO_VERSION} in Ambient mode..."
+# ── Istio (ingress only) ──────────────────────────────────────────────────────
+# Control plane + Gateway API only — no mesh data plane (no ztunnel, no istio-cni).
+echo "==> Installing Istio ${ISTIO_VERSION} (ingress only)..."
 # --server-side handles CRD-before-CR ordering gracefully
 kustomize build --enable-helm "$DIR/istio" \
     | kubectl apply --server-side --force-conflicts -f -
@@ -83,12 +84,6 @@ kustomize build --enable-helm "$DIR/istio" \
 echo "    Waiting for istiod..."
 kubectl wait --for=condition=Available deployment/istiod \
     -n istio-system --timeout=300s
-
-echo "    Waiting for ztunnel DaemonSet..."
-kubectl rollout status daemonset/ztunnel -n istio-system --timeout=300s
-
-echo "    Waiting for Istio CNI DaemonSet..."
-kubectl rollout status daemonset/istio-cni-node -n kube-system --timeout=300s
 
 # ── Shared Gateway ─────────────────────────────────────────────────────────────
 # A single Gateway is shared by every service in the cluster. MetalLB assigns it

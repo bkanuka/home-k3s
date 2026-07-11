@@ -10,6 +10,18 @@ spec:
     namespace: istio-system
     kind: Gateway
   rules:
-  - backendRefs:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /httpbin
+    # httpbin serves its endpoints at root (/get, /headers, ...), so strip the
+    # /httpbin prefix before forwarding: /httpbin/get -> /get, /httpbin -> /.
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
     - name: httpbin
       port: 80

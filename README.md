@@ -182,11 +182,11 @@ Application as `Synced`/`Healthy`. Then test it through the shared gateway:
 ```bash
 GW_IP=$(kubectl get svc -n istio-system home-gateway-istio \
   -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-curl http://${GW_IP}/get
+curl http://${GW_IP}/httpbin/get
 ```
 
 This IP is the **one** address for the whole cluster — every service is reached
-through it.
+through it, distinguished by path (`/httpbin`, `/argocd`, ...).
 
 ## Adding a service
 

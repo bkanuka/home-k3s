@@ -23,7 +23,11 @@ helmCharts:
     profile: ambient
 
 # 3. CNI: Istio CNI plugin for ambient ztunnel traffic interception
-#    Paths are specific to k3s (differs from standard /opt/cni/bin)
+#    Paths are specific to k3s (differs from standard /opt/cni/bin).
+#    k3s >= ~v1.30.3 puts CNI plugin binaries in data/cni (NOT data/current/bin,
+#    which is the general busybox/coreutils bin dir). containerd's CNI loader
+#    only searches data/cni, so istio-cni must install its binary there or
+#    pod sandbox creation fails with "failed to find plugin istio-cni".
 - name: cni
   repo: https://istio-release.storage.googleapis.com/charts
   version: 1.29.2
@@ -32,7 +36,7 @@ helmCharts:
   valuesInline:
     profile: ambient
     cni:
-      cniBinDir: /var/lib/rancher/k3s/data/current/bin
+      cniBinDir: /var/lib/rancher/k3s/data/cni
       cniConfDir: /var/lib/rancher/k3s/agent/etc/cni/net.d
 
 # 4. ztunnel: per-node DaemonSet for ambient L4 traffic management

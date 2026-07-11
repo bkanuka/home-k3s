@@ -20,7 +20,8 @@ spec:
       prune: true
       selfHeal: true
     syncOptions:
-    # The upstream install manifest has CRDs too large for client-side apply's
-    # last-applied annotation, so Argo CD must use server-side apply here too.
-    - ServerSideApply=true
     - CreateNamespace=true
+    # NOTE: ServerSideApply is applied PER-RESOURCE (only to the CRDs, which are
+    # too large for client-side apply's last-applied annotation) via a sync-option
+    # annotation in kustomization.yaml — NOT app-wide. App-wide SSA makes the
+    # HTTPRoute perpetually OutOfSync due to Istio's controller field ownership.

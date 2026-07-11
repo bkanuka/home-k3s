@@ -6,6 +6,9 @@ __pycache__/
 # IDE
 .idea/
 
+# Helm charts pulled on demand by `kustomize build --enable-helm`
+istio/charts/
+
 # Kubeconfig / secrets (never commit)
 *.kubeconfig
 kubeconfig

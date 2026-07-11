@@ -100,15 +100,21 @@ kubectl get namespace argocd >/dev/null 2>&1 || kubectl create namespace argocd
 kubectl apply -n argocd --server-side --force-conflicts \
     -f "https://raw.githubusercontent.com/argoproj/argo-cd/${ARGOCD_VERSION}/manifests/install.yaml"
 
+# Serve Argo CD over HTTP under the /argocd subpath so it rides the shared
+# gateway. Changing cmd-params requires an argocd-server restart to take effect.
+echo "==> Configuring Argo CD to serve under /argocd..."
+kubectl apply -n argocd --server-side --force-conflicts -f "$DIR/argocd/cmd-params-cm.yaml"
+kubectl rollout restart deployment/argocd-server -n argocd
+
 echo "    Waiting for Argo CD server..."
-kubectl wait --for=condition=Available deployment/argocd-server \
-    -n argocd --timeout=300s
+kubectl rollout status deployment/argocd-server -n argocd --timeout=300s
 kubectl wait --for=condition=Available deployment/argocd-applicationset-controller \
     -n argocd --timeout=180s
 
-echo "==> Registering the applications/ ApplicationSet..."
+echo "==> Exposing Argo CD at /argocd and registering the applications/ ApplicationSet..."
 # From here on, services in applications/ are managed by Argo CD via git — not
 # by this script. Push a change and Argo CD reconciles the cluster to match.
+kubectl apply -f "$DIR/argocd/httproute.yaml"
 kubectl apply -f "$DIR/argocd/applicationset.yaml"
 
 # ── Summary ───────────────────────────────────────────────────────────────────
@@ -119,7 +125,8 @@ echo "Gateway status:"
 kubectl get gateway -n istio-system home-gateway -o wide 2>/dev/null || true
 echo ""
 echo "Gateway IP (may take a moment for MetalLB to assign):"
-kubectl get svc -n istio-system home-gateway-istio -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null && echo || true
+GW_IP=$(kubectl get svc -n istio-system home-gateway-istio -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "<GATEWAY-IP>")
+echo "  ${GW_IP}"
 echo ""
 echo "Applications (managed by Argo CD):"
 kubectl get applications -n argocd 2>/dev/null || echo "  (Argo CD is still syncing; check again shortly)"
@@ -127,10 +134,8 @@ echo ""
 echo "Argo CD admin password:"
 kubectl -n argocd get secret argocd-initial-admin-secret \
     -o jsonpath='{.data.password}' 2>/dev/null | base64 -d 2>/dev/null && echo || echo "  (not available yet)"
-echo "Access the Argo CD UI with:"
-echo "  kubectl port-forward -n argocd svc/argocd-server 8080:443"
-echo "  # then open https://localhost:8080  (user: admin)"
+echo "Access the Argo CD UI through the gateway (user: admin):"
+echo "  http://${GW_IP}/argocd"
 echo ""
 echo "Test httpbin once Argo CD has synced it:"
-GW_IP=$(kubectl get svc -n istio-system home-gateway-istio -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "<GATEWAY-IP>")
 echo "  curl http://${GW_IP}/get"

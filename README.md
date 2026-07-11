@@ -147,15 +147,18 @@ turns **each subfolder into an Argo CD `Application`** that is synced with
 `prune` + `selfHeal` enabled — so the cluster always matches git, and manual
 `kubectl` drift gets reverted.
 
-Access the Argo CD UI:
+Argo CD is itself exposed **through the shared gateway** at `/argocd`
+([`argocd/httproute.yaml`](argocd/httproute.yaml)). It runs in insecure/HTTP mode
+under that subpath ([`argocd/cmd-params-cm.yaml`](argocd/cmd-params-cm.yaml)) so
+it can share the single gateway IP with every other service.
 
 ```bash
 # initial admin password
 kubectl -n argocd get secret argocd-initial-admin-secret \
   -o jsonpath='{.data.password}' | base64 -d; echo
 
-kubectl port-forward -n argocd svc/argocd-server 8080:443
-# open https://localhost:8080  (user: admin)
+# then open the UI through the gateway (user: admin):
+#   http://<gateway-ip>/argocd
 ```
 
 > **⚠️ Private repo access.** This repo is **private**, so Argo CD needs

@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# NOTE: Run via install.sh which applies components in dependency order.
+# Direct `kustomize build --enable-helm .` will work but requires
+# CRDs (Gateway API, MetalLB, Istio) to already be present in the cluster.
+resources:
+- https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.4.0/experimental-install.yaml
+- metallb/
+- istio/
+- gateway/   # single shared Gateway used by every service
+- httpbin/

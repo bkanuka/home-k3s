@@ -1,0 +1,20 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  # Shared gateway for ALL services in the cluster (Plex, Sonarr, Radarr, ...).
+  # Every app routes through this one Gateway by pointing its HTTPRoute's
+  # parentRef here — there is only one LoadBalancer IP for the whole cluster.
+  name: home-gateway
+  namespace: istio-system
+spec:
+  # Istio registers the "istio" GatewayClass; it creates a LoadBalancer Service
+  # in istio-system which MetalLB will assign an IP to.
+  gatewayClassName: istio
+  listeners:
+  - name: http
+    protocol: HTTP
+    port: 80
+    allowedRoutes:
+      # Allow HTTPRoutes from any namespace to attach to this shared gateway.
+      namespaces:
+        from: All

@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: httpbin
+  labels:
+    # Opt the entire namespace into Istio Ambient mode (ztunnel L4 protection)
+    istio.io/dataplane-mode: ambient

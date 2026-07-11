@@ -1,0 +1,12 @@
+# Python virtualenv
+.venv/
+__pycache__/
+*.pyc
+
+# IDE
+.idea/
+
+# Kubeconfig / secrets (never commit)
+*.kubeconfig
+kubeconfig
+k3s.yaml

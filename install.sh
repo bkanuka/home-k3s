@@ -4,7 +4,7 @@ set -euo pipefail
 KUSTOMIZE_VERSION="5.4.3"
 ISTIO_VERSION="1.29.2"
 GATEWAY_API_VERSION="v1.4.0"
-METALLB_VERSION="v0.14.8"
+METALLB_VERSION="v0.15.2"
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -64,7 +64,7 @@ echo "    Waiting for MetalLB controller..."
 kubectl wait --for=condition=Available deployment/controller \
     -n metallb-system --timeout=180s
 
-# MetalLB v0.14 has no separate webhook deployment — the controller serves the
+# MetalLB has no separate webhook deployment — the controller serves the
 # validating webhook. It can take a few seconds after the controller is Available
 # before the webhook accepts connections, so retry the config apply until it takes.
 echo "==> Configuring MetalLB address pool..."

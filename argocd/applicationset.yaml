@@ -19,6 +19,10 @@ spec:
     metadata:
       # Application named after the folder, e.g. applications/httpbin -> "httpbin"
       name: '{{.path.basename}}'
+      annotations:
+        # Show a link in the Argo CD UI to the service's path on the shared
+        # gateway, e.g. the "httpbin" app links to /httpbin.
+        link.argocd.argoproj.io/external-link: '/{{.path.basename}}'
     spec:
       project: default
       source:

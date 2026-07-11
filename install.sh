@@ -63,11 +63,15 @@ kustomize build "$DIR/metallb" | kubectl apply -f -
 echo "    Waiting for MetalLB controller..."
 kubectl wait --for=condition=Available deployment/controller \
     -n metallb-system --timeout=180s
-kubectl wait --for=condition=Available deployment/metallb-webhook-server \
-    -n metallb-system --timeout=60s
 
+# MetalLB v0.14 has no separate webhook deployment — the controller serves the
+# validating webhook. It can take a few seconds after the controller is Available
+# before the webhook accepts connections, so retry the config apply until it takes.
 echo "==> Configuring MetalLB address pool..."
-kubectl apply -f "$DIR/metallb/config.yaml"
+until kubectl apply -f "$DIR/metallb/config.yaml" 2>/dev/null; do
+    echo "    Webhook not ready yet, retrying..."
+    sleep 3
+done
 
 # ── Istio Ambient Mode ────────────────────────────────────────────────────────
 echo "==> Installing Istio ${ISTIO_VERSION} in Ambient mode..."

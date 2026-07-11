@@ -62,7 +62,7 @@ Pinned in `install.sh`:
 | Kustomize     | 5.4.3     |
 | Istio         | 1.29.2    |
 | Gateway API   | v1.4.0    |
-| MetalLB       | v0.15.2   |
+| MetalLB       | v0.16.0   |
 
 ## Prerequisites
 

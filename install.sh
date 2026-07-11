@@ -4,7 +4,7 @@ set -euo pipefail
 KUSTOMIZE_VERSION="5.4.3"
 ISTIO_VERSION="1.29.2"
 GATEWAY_API_VERSION="v1.4.0"
-METALLB_VERSION="v0.15.2"
+METALLB_VERSION="v0.16.0"
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 

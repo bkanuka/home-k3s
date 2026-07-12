@@ -166,6 +166,27 @@ kubectl wait --for=condition=Available deployment/argocd-applicationset-controll
 # From here on, services in applications/ are managed by Argo CD via git, and so
 # is Argo CD itself. Push a change and Argo CD reconciles the cluster to match.
 
+# ── Authentik secret (out-of-band) ───────────────────────────────────────────
+# Authentik is an Argo-managed app, but its secret — session key, Postgres
+# password, Google OAuth client, bootstrap admin password — must never be in git.
+# Seed it from a host env file (mirrors the Gandi pattern). Argo does NOT manage
+# or prune this Secret. The `--from-env-file` keys become the Secret's keys.
+# Non-fatal if missing: the rest of the cluster still comes up; authentik pods
+# just wait until the Secret exists. See applications/authentik/secret.env.example.
+AUTHENTIK_ENV_FILE="/mnt/main/config/authentik/authentik.env"
+if [ -f "$AUTHENTIK_ENV_FILE" ]; then
+    echo "==> Creating authentik-secrets Secret from $AUTHENTIK_ENV_FILE..."
+    kubectl create namespace authentik --dry-run=client -o yaml | kubectl apply -f -
+    kubectl create secret generic authentik-secrets -n authentik \
+        --from-env-file="$AUTHENTIK_ENV_FILE" \
+        --dry-run=client -o yaml | kubectl apply -f -
+else
+    echo "==> WARNING: $AUTHENTIK_ENV_FILE not found."
+    echo "    Authentik pods will stay pending until you create it"
+    echo "    (see applications/authentik/secret.env.example) and re-run this script"
+    echo "    or create the authentik-secrets Secret manually."
+fi
+
 # ── Summary ───────────────────────────────────────────────────────────────────
 echo ""
 echo "==> Installation complete!"

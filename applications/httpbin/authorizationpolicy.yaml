@@ -1,0 +1,30 @@
+# Enforce Authentik forward-auth on httpbin ONLY. Lives in istio-system (same ns
+# as the gateway it targets) but is owned by the httpbin Argo app so the auth
+# config stays co-located with the service it protects.
+#
+# action: CUSTOM sends matching requests to the `authentik` extensionProvider
+# (defined in ../../istio meshConfig -> the embedded outpost's ext_authz endpoint).
+# Scoped to the httpbin host so every OTHER service on the shared gateway stays
+# unauthenticated. The outpost's own /outpost.goauthentik.io/* endpoints are
+# excluded (notPaths) — they must pass through to the outpost to run the sign-in
+# flow, not be auth-checked themselves.
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: httpbin-ext-authz
+  namespace: istio-system
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: Gateway
+    name: home-gateway
+  action: CUSTOM
+  provider:
+    name: authentik
+  rules:
+  - to:
+    - operation:
+        hosts:
+        - httpbin.home.bkanuka.com
+        notPaths:
+        - /outpost.goauthentik.io/*

@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Authentik (plain manifests — no Helm, so Argo CD needs no --enable-helm).
+# Identity provider brokering Google logins; protects httpbin via ext_authz
+# forward-auth (see ../../istio meshConfig + ../httpbin/authorizationpolicy.yaml).
+#
+# The `authentik-secrets` Secret is NOT built here — install.sh materializes it
+# from /mnt/main/config/authentik/authentik.env (see secret.env.example), so no
+# secret lands in git. Until it exists, the server/worker pods won't start.
+resources:
+- namespace.yaml
+- postgres.yaml
+- redis.yaml
+- server.yaml
+- worker.yaml
+- blueprints.yaml
+- httproute.yaml

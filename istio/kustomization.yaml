@@ -35,3 +35,34 @@ helmCharts:
     pilot:
       env:
         PILOT_ENABLE_ALPHA_GATEWAY_API: "true"
+    # ext_authz provider for Authentik forward-auth. An AuthorizationPolicy with
+    # action: CUSTOM + provider.name=authentik (see applications/httpbin/) routes
+    # matching requests to Authentik's embedded outpost. Only apps that opt in via
+    # such a policy are affected — everything else is untouched.
+    meshConfig:
+      extensionProviders:
+      - name: authentik
+        envoyExtAuthzHttp:
+          service: authentik-server.authentik.svc.cluster.local
+          port: 9000
+          # Envoy appends the original path; this is the outpost's ext_authz check.
+          pathPrefix: /outpost.goauthentik.io/auth/envoy
+          # Send the session cookie so the outpost can validate an existing login.
+          includeRequestHeadersInCheck:
+          - cookie
+          - authorization
+          # On allow, pass Authentik's identity headers to the upstream app.
+          headersToUpstreamOnAllow:
+          - set-cookie
+          - x-authentik-username
+          - x-authentik-groups
+          - x-authentik-email
+          - x-authentik-name
+          - x-authentik-uid
+          # On deny (unauthenticated), pass the 302 redirect to the login back to
+          # the browser.
+          headersToDownstreamOnDeny:
+          - content-type
+          - set-cookie
+          - location
+          - www-authenticate

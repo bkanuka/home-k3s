@@ -7,3 +7,5 @@ resources:
 - service.yaml
 # NOTE: the shared Gateway is a core service (see /gateway), not part of this app.
 - httproute.yaml
+# Authentik forward-auth enforcement (in istio-system, scoped to this host only).
+- authorizationpolicy.yaml

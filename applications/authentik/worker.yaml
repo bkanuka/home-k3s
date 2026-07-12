@@ -1,0 +1,46 @@
+# Authentik worker: runs migrations, background tasks, and APPLIES BLUEPRINTS
+# discovered under /blueprints (including our mounted /blueprints/custom). Same
+# image/config as the server, arg "worker".
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: authentik-worker
+  namespace: authentik
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: authentik-worker
+  template:
+    metadata:
+      labels:
+        app: authentik-worker
+    spec:
+      containers:
+      - name: worker
+        image: ghcr.io/goauthentik/server:2025.10.0
+        args: ["worker"]
+        envFrom:
+        - secretRef:
+            name: authentik-secrets
+        env:
+        - name: AUTHENTIK_POSTGRESQL__HOST
+          value: authentik-postgresql
+        - name: AUTHENTIK_POSTGRESQL__NAME
+          value: authentik
+        - name: AUTHENTIK_POSTGRESQL__USER
+          value: authentik
+        - name: AUTHENTIK_REDIS__HOST
+          value: authentik-redis
+        resources:
+          requests:
+            cpu: 150m
+            memory: 512Mi
+        volumeMounts:
+        - name: blueprints
+          mountPath: /blueprints/custom
+          readOnly: true
+      volumes:
+      - name: blueprints
+        configMap:
+          name: authentik-blueprints

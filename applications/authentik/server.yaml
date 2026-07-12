@@ -1,0 +1,85 @@
+# Authentik server: web UI/API + the EMBEDDED OUTPOST. The embedded outpost is
+# what the Istio gateway calls for ext_authz (forward-auth) and what serves the
+# /outpost.goauthentik.io/* sign-in endpoints on protected hosts. Listens on
+# :9000 (http) and :9443 (https). Same image as the worker, different arg.
+#
+# NOTE: verify the image tag is a current stable Authentik release before first
+# deploy (tags are date-based, e.g. 2025.10.x); bump if needed.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: authentik-server
+  namespace: authentik
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: authentik-server
+  template:
+    metadata:
+      labels:
+        app: authentik-server
+    spec:
+      containers:
+      - name: server
+        image: ghcr.io/goauthentik/server:2025.10.0
+        args: ["server"]
+        envFrom:
+        # AUTHENTIK_SECRET_KEY, AUTHENTIK_POSTGRESQL__PASSWORD, GOOGLE_CLIENT_ID,
+        # GOOGLE_CLIENT_SECRET, AUTHENTIK_BOOTSTRAP_PASSWORD (+ optional TOKEN).
+        - secretRef:
+            name: authentik-secrets
+        env:
+        - name: AUTHENTIK_POSTGRESQL__HOST
+          value: authentik-postgresql
+        - name: AUTHENTIK_POSTGRESQL__NAME
+          value: authentik
+        - name: AUTHENTIK_POSTGRESQL__USER
+          value: authentik
+        - name: AUTHENTIK_REDIS__HOST
+          value: authentik-redis
+        ports:
+        - name: http
+          containerPort: 9000
+        - name: https
+          containerPort: 9443
+        livenessProbe:
+          httpGet:
+            path: /-/health/live/
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 15
+        readinessProbe:
+          httpGet:
+            path: /-/health/ready/
+            port: http
+          initialDelaySeconds: 20
+          periodSeconds: 15
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+        volumeMounts:
+        - name: blueprints
+          mountPath: /blueprints/custom
+          readOnly: true
+      volumes:
+      - name: blueprints
+        configMap:
+          name: authentik-blueprints
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: authentik-server
+  namespace: authentik
+spec:
+  selector:
+    app: authentik-server
+  ports:
+  - name: http
+    port: 9000
+    targetPort: 9000
+  - name: https
+    port: 9443
+    targetPort: 9443

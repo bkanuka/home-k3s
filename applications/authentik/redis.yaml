@@ -1,0 +1,52 @@
+# Redis for Authentik (task queue + cache). Ephemeral: on restart Authentik
+# re-populates it; no PVC needed. Kept minimal.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: authentik-redis
+  namespace: authentik
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: authentik-redis
+  template:
+    metadata:
+      labels:
+        app: authentik-redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        args: ["--save", "60", "1", "--loglevel", "warning"]
+        ports:
+        - name: redis
+          containerPort: 6379
+        readinessProbe:
+          exec:
+            command: ["redis-cli", "ping"]
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+        volumeMounts:
+        - name: data
+          mountPath: /data
+      volumes:
+      - name: data
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: authentik-redis
+  namespace: authentik
+spec:
+  selector:
+    app: authentik-redis
+  ports:
+  - name: redis
+    port: 6379
+    targetPort: 6379

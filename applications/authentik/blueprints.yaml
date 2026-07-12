@@ -1,0 +1,96 @@
+# Authentik configuration-as-code, mounted into server+worker at
+# /blueprints/custom and applied automatically by the worker. Everything that
+# defines "Google login, only bkanuka@gmail.com, protecting httpbin" lives here
+# — no click-ops. OAuth secrets are NOT in git: they're referenced with `!Env`
+# and injected from the authentik-secrets Secret (see secret.env.example).
+#
+# NOTE: Authentik's blueprint schema is strict and version-sensitive (flow slugs,
+# enum values, required fields like invalidation_flow can shift between releases).
+# Expect to verify/tweak this once against the running version — check the worker
+# logs and Admin > Customization > Blueprints for apply errors.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: authentik-blueprints
+  namespace: authentik
+data:
+  httpbin-forward-auth.yaml: |
+    version: 1
+    metadata:
+      name: httpbin forward-auth + Google login (single user)
+    entries:
+      # --- Google OAuth source ("Login with Google") ---
+      - model: authentik_sources_oauth.oauthsource
+        id: source-google
+        identifiers:
+          slug: google
+        attrs:
+          name: Google
+          provider_type: google
+          consumer_key: !Env GOOGLE_CLIENT_ID
+          consumer_secret: !Env GOOGLE_CLIENT_SECRET
+          enabled: true
+          # Link Google logins to EXISTING users by verified email. With no
+          # enrollment flow set, any Google account without a pre-created match
+          # is rejected — that plus the single user below locks it to one person.
+          user_matching_mode: email_link
+          authentication_flow: !Find [authentik_flows.flow, [slug, default-source-authentication]]
+
+      # --- The only permitted user ---
+      - model: authentik_core.user
+        id: user-bkanuka
+        identifiers:
+          username: bkanuka
+        attrs:
+          name: Bennett Kanuka
+          email: bkanuka@gmail.com
+          is_active: true
+          path: users
+
+      # --- Access group containing just that user ---
+      - model: authentik_core.group
+        id: group-httpbin
+        identifiers:
+          name: httpbin-access
+        attrs:
+          users:
+            - !KeyOf user-bkanuka
+
+      # --- Proxy provider in FORWARD-AUTH mode for the httpbin host ---
+      - model: authentik_providers_proxy.proxyprovider
+        id: provider-httpbin
+        identifiers:
+          name: httpbin
+        attrs:
+          mode: forward_single
+          external_host: https://httpbin.home.bkanuka.com
+          authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+          invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+
+      # --- Application, bound to the provider ---
+      - model: authentik_core.application
+        id: app-httpbin
+        identifiers:
+          slug: httpbin
+        attrs:
+          name: httpbin
+          provider: !KeyOf provider-httpbin
+
+      # --- Restrict the application to the httpbin-access group ---
+      - model: authentik_policies.policybinding
+        identifiers:
+          target: !KeyOf app-httpbin
+          group: !KeyOf group-httpbin
+          order: 0
+        attrs:
+          enabled: true
+
+      # --- Register the provider with the embedded outpost that Istio ext_authz
+      #     calls. Identified by its default name so we update it in place. ---
+      - model: authentik_outposts.outpost
+        identifiers:
+          name: authentik Embedded Outpost
+        attrs:
+          type: proxy
+          providers:
+            - !KeyOf provider-httpbin

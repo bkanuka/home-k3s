@@ -1,0 +1,66 @@
+# Authentik's own UI/API at authentik.home.bkanuka.com over HTTPS (wildcard cert
+# on the gateway's https listener), plus an HTTP->HTTPS redirect. This is the
+# host used in the Google OAuth redirect URI:
+#   https://authentik.home.bkanuka.com/source/oauth/callback/google/
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: authentik
+  namespace: authentik
+spec:
+  parentRefs:
+  - group: gateway.networking.k8s.io
+    name: home-gateway
+    namespace: istio-system
+    kind: Gateway
+    sectionName: https
+  hostnames:
+  - authentik.home.bkanuka.com
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /
+    backendRefs:
+    - name: authentik-server
+      port: 9000
+      weight: 1
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: authentik-https-redirect
+  namespace: authentik
+spec:
+  parentRefs:
+  - group: gateway.networking.k8s.io
+    name: home-gateway
+    namespace: istio-system
+    kind: Gateway
+    sectionName: http
+  hostnames:
+  - authentik.home.bkanuka.com
+  rules:
+  - filters:
+    - type: RequestRedirect
+      requestRedirect:
+        scheme: https
+        statusCode: 301
+---
+# Allow HTTPRoutes in OTHER namespaces (specifically httpbin) to route to the
+# authentik-server Service — needed because httpbin's route sends the
+# /outpost.goauthentik.io/* sign-in paths to the embedded outpost here.
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: allow-httpbin-to-authentik-server
+  namespace: authentik
+spec:
+  from:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    namespace: httpbin
+  to:
+  - group: ""
+    kind: Service
+    name: authentik-server

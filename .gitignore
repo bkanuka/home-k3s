@@ -19,3 +19,7 @@ k3s.yaml
 # ddns-updater secrets & runtime state (only the .example belongs in git)
 applications/ddns-updater/data/
 applications/ddns-updater/config.json
+
+# Authentik secret env (only the .example belongs in git; real file lives on the
+# server at /mnt/main/config/authentik/authentik.env)
+applications/authentik/authentik.env

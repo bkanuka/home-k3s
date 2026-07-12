@@ -1,3 +1,12 @@
+# httpbin at httpbin.home.bkanuka.com over HTTPS, PROTECTED by Authentik
+# forward-auth (see authorizationpolicy.yaml + ../../istio meshConfig). Moved off
+# the old path-based /httpbin to a dedicated host so the OIDC redirect + session
+# cookie work cleanly (uniform with every other app now).
+#
+# Two rules, order matters (most-specific path first):
+#   1. /outpost.goauthentik.io/*  -> Authentik embedded outpost (the sign-in,
+#      callback, and check endpoints must live on THIS host for cookies to work).
+#   2. /                          -> httpbin backend (gated by ext_authz).
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
@@ -5,23 +14,52 @@ metadata:
   namespace: httpbin
 spec:
   parentRefs:
-  # Attach to the single shared gateway (see ../gateway/). Every service does this.
-  - name: home-gateway
+  - group: gateway.networking.k8s.io
+    name: home-gateway
     namespace: istio-system
     kind: Gateway
+    sectionName: https
+  hostnames:
+  - httpbin.home.bkanuka.com
   rules:
+  # 1. Authentik outpost endpoints (cross-namespace; see the ReferenceGrant in
+  #    applications/authentik/httproute.yaml).
   - matches:
     - path:
         type: PathPrefix
-        value: /httpbin
-    # httpbin serves its endpoints at root (/get, /headers, ...), so strip the
-    # /httpbin prefix before forwarding: /httpbin/get -> /get, /httpbin -> /.
-    filters:
-    - type: URLRewrite
-      urlRewrite:
-        path:
-          type: ReplacePrefixMatch
-          replacePrefixMatch: /
+        value: /outpost.goauthentik.io
+    backendRefs:
+    - name: authentik-server
+      namespace: authentik
+      port: 9000
+      weight: 1
+  # 2. httpbin itself.
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /
     backendRefs:
     - name: httpbin
       port: 80
+      weight: 1
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: httpbin-https-redirect
+  namespace: httpbin
+spec:
+  parentRefs:
+  - group: gateway.networking.k8s.io
+    name: home-gateway
+    namespace: istio-system
+    kind: Gateway
+    sectionName: http
+  hostnames:
+  - httpbin.home.bkanuka.com
+  rules:
+  - filters:
+    - type: RequestRedirect
+      requestRedirect:
+        scheme: https
+        statusCode: 301

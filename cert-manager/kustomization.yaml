@@ -24,8 +24,14 @@ helmCharts:
       enabled: true
     # Enable the Gateway API integration so cert-manager reconciles certs for
     # Gateway listeners annotated with cert-manager.io/cluster-issuer.
+    #
+    # NOTE: this is a feature GATE, not a `gatewayAPI.enable` block. The chart's
+    # values.yaml still documents `gatewayAPI.enable: true`, but the v1.21.0
+    # controller's strict decoder REJECTS that field and crash-loops
+    # (`unknown field "gatewayAPI.enable"`). ExperimentalGatewayAPISupport is beta
+    # and default=true in v1.21, but we set it explicitly for clarity/pinning.
     config:
       apiVersion: controller.config.cert-manager.io/v1alpha1
       kind: ControllerConfiguration
-      gatewayAPI:
-        enable: true
+      featureGates:
+        ExperimentalGatewayAPISupport: true

@@ -58,3 +58,19 @@ spec:
     allowedRoutes:
       namespaces:
         from: All
+  # TCP :32400 — raw passthrough for Plex's built-in Remote Access. Plex terminates
+  # its OWN TLS on this port (its *.plex.direct cert), so this must be an L4 TCP
+  # listener, NOT the L7 HTTPS listeners above (which terminate TLS with the
+  # wildcard cert). Istio adds 32400 to the gateway's LoadBalancer Service, so
+  # MetalLB serves it on the SAME 192.168.1.200 — no extra IP. A TCPRoute in the
+  # plex namespace (applications/plex/tcproute.yaml) forwards it to plex:32400.
+  # Requires WAN TCP 32400 forwarded to 192.168.1.200.
+  - name: plex-pms
+    protocol: TCP
+    port: 32400
+    allowedRoutes:
+      kinds:
+      - group: gateway.networking.k8s.io
+        kind: TCPRoute
+      namespaces:
+        from: All

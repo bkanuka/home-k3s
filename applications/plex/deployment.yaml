@@ -17,6 +17,12 @@ spec:
       labels:
         app: plex
     spec:
+      # Stable hostname so Plex's default server identity/friendly name isn't the
+      # ephemeral ReplicaSet-hashed pod name (which changes every deploy and shows
+      # up as "plex-<hash>" in clients). Plex is reached via the gateway; its
+      # advertised connection is set in Settings > Network > Custom server access
+      # URLs (https://plex.home.bkanuka.com:443), not by this hostname.
+      hostname: plex
       # Run under the NVIDIA container runtime so the injected GPU is usable for
       # hardware transcoding. Requires the nvidia-device-plugin (core platform).
       runtimeClassName: nvidia

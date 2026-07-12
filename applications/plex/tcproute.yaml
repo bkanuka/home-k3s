@@ -1,0 +1,26 @@
+# Raw TCP passthrough for Plex's built-in Remote Access. Attaches to the shared
+# gateway's `plex-pms` TCP listener (:32400) and forwards untouched to the Plex
+# pod on 32400, so Plex terminates its own TLS (*.plex.direct) — which its remote
+# access reachability test and plex.direct client connections require. This is
+# separate from the L7 HTTPRoute (httproute.yaml), which serves the friendly
+# https://plex.home.bkanuka.com URL through the gateway's HTTPS listener.
+#
+# TCPRoute is in the experimental Gateway API channel (v1alpha2), which this
+# cluster installs. In Plex: Settings > Remote Access > manually specify public
+# port 32400, then enable Remote Access.
+apiVersion: gateway.networking.k8s.io/v1alpha2
+kind: TCPRoute
+metadata:
+  name: plex-pms
+  namespace: plex
+spec:
+  parentRefs:
+  - group: gateway.networking.k8s.io
+    name: home-gateway
+    namespace: istio-system
+    kind: Gateway
+    sectionName: plex-pms
+  rules:
+  - backendRefs:
+    - name: plex
+      port: 32400

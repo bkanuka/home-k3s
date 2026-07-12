@@ -24,14 +24,16 @@ helmCharts:
       enabled: true
     # Enable the Gateway API integration so cert-manager reconciles certs for
     # Gateway listeners annotated with cert-manager.io/cluster-issuer (the
-    # gateway-shim controller).
-    #
-    # This MUST be the controller `--feature-gates` FLAG (this top-level chart
-    # value renders to `--feature-gates=...`). On v1.21.0 the two config-file
-    # forms the chart's values.yaml documents both FAIL:
-    #   - `config.gatewayAPI.enable: true`  -> strict-decode crash-loop
-    #     (`unknown field "gatewayAPI.enable"`)
-    #   - `config.featureGates: {...}`      -> silently ignored; gateway-shim
-    #     stays disabled ("enabled controllers" list omits it)
-    # The flag is the only form that actually enables gateway-shim.
+    # gateway-shim controller). On v1.21.0 this needs BOTH controller switches —
+    # the feature gate alone is necessary but NOT sufficient:
+    #   1. ExperimentalGatewayAPISupport feature gate (BETA, default=true; kept
+    #      explicit for clarity/pinning).
+    #   2. the --enable-gateway-api flag, which defaults OFF. Without it,
+    #      gateway-shim logs "skipping disabled controller" and no Certificate is
+    #      ever created for the annotated Gateway.
+    # The config-file forms the chart's values.yaml documents both FAIL here:
+    # `config.gatewayAPI.enable` strict-decode crash-loops (unknown field), and
+    # `config.featureGates` is silently ignored. Set them as controller flags.
     featureGates: "ExperimentalGatewayAPISupport=true"
+    extraArgs:
+    - --enable-gateway-api

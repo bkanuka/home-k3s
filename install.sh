@@ -118,8 +118,12 @@ if [ ! -f "$GANDI_PAT_FILE" ]; then
     exit 1
 fi
 echo "==> Creating gandi-credentials Secret from $GANDI_PAT_FILE..."
+# Strip whitespace/newlines: a trailing newline in the PAT file produces an
+# invalid `Authorization: Bearer <PAT>` header ("invalid header field value"),
+# so the Gandi DNS-01 solver fails to create TXT records. --from-literal with a
+# whitespace-stripped value is robust even if the file was written with `echo`.
 kubectl create secret generic gandi-credentials -n cert-manager \
-    --from-file=pat="$GANDI_PAT_FILE" \
+    --from-literal=pat="$(tr -d '[:space:]' < "$GANDI_PAT_FILE")" \
     --dry-run=client -o yaml | kubectl apply -f -
 
 echo "    Waiting for Gandi webhook..."

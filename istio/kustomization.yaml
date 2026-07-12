@@ -20,10 +20,18 @@ helmCharts:
   namespace: istio-system
   includeCRDs: true
 
-# 2. Istiod: control plane. Default profile; Gateway API support is on by default
-#    in Istio 1.29, so `Gateway`/`HTTPRoute` resources are reconciled out of the box.
+# 2. Istiod: control plane. Default profile; standard-channel Gateway API is on by
+#    default in Istio 1.29, so `Gateway`/`HTTPRoute`/`GRPCRoute` (v1) are reconciled
+#    out of the box. TCPRoute/TLSRoute are EXPERIMENTAL-channel (v1alpha2) and are
+#    only reconciled when PILOT_ENABLE_ALPHA_GATEWAY_API=true — required here for
+#    the Plex TCP passthrough route (applications/plex/tcproute.yaml). Without it
+#    the TCPRoute gets no status and attaches to 0 listeners.
 - name: istiod
   repo: https://istio-release.storage.googleapis.com/charts
   version: 1.29.2
   releaseName: istiod
   namespace: istio-system
+  valuesInline:
+    pilot:
+      env:
+        PILOT_ENABLE_ALPHA_GATEWAY_API: "true"

@@ -10,8 +10,8 @@ data:
   # Serve plain HTTP (no self-signed TLS): the Istio gateway fronts Argo CD on
   # its HTTP :80 listener and talks to argocd-server's http port.
   server.insecure: "true"
-  # Serve the UI/API under the /argocd subpath so it can share the single shared
-  # gateway with other services. The HTTPRoute forwards /argocd unmodified;
-  # argocd-server handles the prefix itself (no URL rewrite needed).
-  server.rootpath: "/argocd"
-  server.basehref: "/argocd"
+  # Argo CD now lives at its own host root (argocd.home.bkanuka.com), so the
+  # /argocd subpath settings (server.rootpath/basehref) were removed. Argo CD's
+  # self-managing Application uses server-side apply, so dropping them here prunes
+  # them from the live ConfigMap — but argocd-server must be restarted to pick up
+  # the change (kubectl rollout restart deploy/argocd-server -n argocd).

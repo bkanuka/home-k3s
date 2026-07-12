@@ -1,12 +1,12 @@
-# Argo CD UI/API at argocd.home.bkanuka.com over HTTPS (uniform host-based
-# routing, like every other app), plus an HTTP->HTTPS redirect. Argo CD now runs
-# at the host ROOT (no /argocd subpath), so the server.rootpath/basehref settings
-# were dropped from cmd-params-patch.yaml.
+# ddns-updater web UI at ddns-updater.home.bkanuka.com over HTTPS (uniform
+# host-based routing), plus an HTTP->HTTPS redirect. ROOT_URL is already "/" and
+# the service listens on 8572. NOTE: this UI is UNAUTHENTICATED (like the other
+# non-httpbin services) — it's reachable by anyone who can hit the gateway.
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: argocd
-  namespace: argocd
+  name: ddns-updater
+  namespace: ddns-updater
 spec:
   parentRefs:
   - group: gateway.networking.k8s.io
@@ -15,25 +15,22 @@ spec:
     kind: Gateway
     sectionName: https
   hostnames:
-  - argocd.home.bkanuka.com
+  - ddns-updater.home.bkanuka.com
   rules:
   - matches:
     - path:
         type: PathPrefix
         value: /
     backendRefs:
-    # argocd-server's http port (plain HTTP because server.insecure=true).
-    - group: ''
-      kind: Service
-      name: argocd-server
-      port: 80
+    - name: ddns-updater
+      port: 8572
       weight: 1
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: argocd-https-redirect
-  namespace: argocd
+  name: ddns-updater-https-redirect
+  namespace: ddns-updater
 spec:
   parentRefs:
   - group: gateway.networking.k8s.io
@@ -42,7 +39,7 @@ spec:
     kind: Gateway
     sectionName: http
   hostnames:
-  - argocd.home.bkanuka.com
+  - ddns-updater.home.bkanuka.com
   rules:
   - filters:
     - type: RequestRedirect

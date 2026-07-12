@@ -20,9 +20,10 @@ spec:
       # Application named after the folder, e.g. applications/httpbin -> "httpbin"
       name: '{{.path.basename}}'
       annotations:
-        # Show a link in the Argo CD UI to the service's path on the shared
-        # gateway, e.g. the "httpbin" app links to /httpbin.
-        link.argocd.argoproj.io/external-link: '/{{.path.basename}}'
+        # Show a link in the Argo CD UI to the service's host on the shared
+        # gateway, e.g. the "httpbin" app links to https://httpbin.home.bkanuka.com
+        # (uniform host-based routing for every app).
+        link.argocd.argoproj.io/external-link: 'https://{{.path.basename}}.home.bkanuka.com'
     spec:
       project: default
       source:

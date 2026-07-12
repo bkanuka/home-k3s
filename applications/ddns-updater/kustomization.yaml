@@ -1,9 +1,10 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-# NOTE: no HTTPRoute — ddns-updater's web UI has no authentication, so it is not
-# exposed through the internet-facing gateway. Reach it via
-# `kubectl -n ddns-updater port-forward svc/ddns-updater 8572:8572` if needed.
+# NOTE: the web UI is now exposed at ddns-updater.home.bkanuka.com (uniform
+# host-based routing) but is UNAUTHENTICATED — anyone who can reach the gateway
+# can view it. Consider putting it behind Authentik forward-auth (as httpbin is)
+# if that matters.
 #
 # The provider config (domains + Gandi token) is NOT in git — it lives on the
 # server at /mnt/main/config/ddns-updater/config.json and is mounted via hostPath
@@ -12,3 +13,4 @@ resources:
 - namespace.yaml
 - deployment.yaml
 - service.yaml
+- httproute.yaml

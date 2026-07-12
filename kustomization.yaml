@@ -15,3 +15,6 @@ resources:
 - metallb/
 - istio/
 - gateway/   # single shared Gateway used by every service
+- nvidia-device-plugin/   # advertises nvidia.com/gpu for GPU workloads (Plex)
+- cert-manager/   # Let's Encrypt TLS for the gateway's HTTPS listeners
+- cert-manager/webhook-gandi/   # Gandi DNS-01 solver (wildcard certs)

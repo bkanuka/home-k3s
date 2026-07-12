@@ -6,15 +6,55 @@ metadata:
   # parentRef here — there is only one LoadBalancer IP for the whole cluster.
   name: home-gateway
   namespace: istio-system
+  annotations:
+    # cert-manager watches this Gateway and, for every HTTPS listener that has a
+    # hostname + tls.certificateRefs, issues a Let's Encrypt cert into the named
+    # Secret (via DNS-01 through the Gandi webhook). See ../cert-manager/.
+    cert-manager.io/cluster-issuer: letsencrypt
 spec:
   # Istio registers the "istio" GatewayClass; it creates a LoadBalancer Service
   # in istio-system which MetalLB will assign an IP to.
   gatewayClassName: istio
   listeners:
+  # HTTP :80 — kept for HTTP->HTTPS redirects (certs use DNS-01, so :80 is not
+  # needed for issuance). Apps should redirect to HTTPS (see plex).
   - name: http
     protocol: HTTP
     port: 80
     allowedRoutes:
       # Allow HTTPRoutes from any namespace to attach to this shared gateway.
+      namespaces:
+        from: All
+  # HTTPS :443 — TLS terminated at the gateway. The WILDCARD listener covers every
+  # service subdomain (plex.home.bkanuka.com, sonarr.home.bkanuka.com, ...); the
+  # apex listener below covers the bare home.bkanuka.com (wildcards do NOT match
+  # the apex). Both listeners reference the SAME Secret, so cert-manager issues
+  # ONE cert whose SANs are the union of the listener hostnames — i.e.
+  # `*.home.bkanuka.com` AND `home.bkanuka.com` — via DNS-01 (Gandi webhook).
+  - name: https
+    protocol: HTTPS
+    port: 443
+    hostname: "*.home.bkanuka.com"
+    tls:
+      mode: Terminate
+      # cert-manager creates/populates this Secret from the listener hostnames.
+      certificateRefs:
+      - name: wildcard-home-bkanuka-tls
+    allowedRoutes:
+      namespaces:
+        from: All
+  # HTTPS :443 for the apex home.bkanuka.com. Distinguished from the wildcard
+  # listener by SNI. Shares the wildcard-home-bkanuka-tls Secret so the apex is
+  # added as an extra SAN on the same cert (no second cert/Secret). Reserved for
+  # future use — no HTTPRoute needs to attach here yet for the cert to be issued.
+  - name: https-apex
+    protocol: HTTPS
+    port: 443
+    hostname: "home.bkanuka.com"
+    tls:
+      mode: Terminate
+      certificateRefs:
+      - name: wildcard-home-bkanuka-tls
+    allowedRoutes:
       namespaces:
         from: All

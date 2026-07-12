@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ddns-updater
+  namespace: ddns-updater
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ddns-updater
+  template:
+    metadata:
+      labels:
+        app: ddns-updater
+    spec:
+      containers:
+      - name: ddns-updater
+        image: qmcgaw/ddns-updater:v2.10.0
+        ports:
+        - name: web
+          containerPort: 8572
+        env:
+        # Provider config (domains + Gandi token) is read from
+        # /updater/data/config.json, supplied via the hostPath mount below — it
+        # is NOT in git. Leaving CONFIG unset makes ddns-updater use that file.
+        - name: PERIOD
+          value: 5m
+        - name: UPDATE_COOLDOWN_PERIOD
+          value: 5m
+        - name: PUBLICIP_FETCHERS
+          value: all
+        - name: PUBLICIP_HTTP_PROVIDERS
+          value: all
+        - name: PUBLICIPV4_HTTP_PROVIDERS
+          value: all
+        - name: PUBLICIPV6_HTTP_PROVIDERS
+          value: all
+        - name: PUBLICIP_DNS_PROVIDERS
+          value: all
+        - name: PUBLICIP_DNS_TIMEOUT
+          value: 3s
+        - name: HTTP_TIMEOUT
+          value: 10s
+        - name: LISTENING_ADDRESS
+          value: :8572
+        - name: ROOT_URL
+          value: /
+        - name: BACKUP_PERIOD
+          value: "0"
+        - name: LOG_LEVEL
+          value: info
+        - name: LOG_CALLER
+          value: hidden
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+        volumeMounts:
+        - name: data
+          mountPath: /updater/data
+      volumes:
+      # Config + runtime state live on the server (single node), read/written in
+      # place — config.json (secret, not in git) and updates.json history. Must
+      # be readable/writable by the image's UID 1000.
+      - name: data
+        hostPath:
+          path: /mnt/main/config/ddns-updater
+          type: Directory

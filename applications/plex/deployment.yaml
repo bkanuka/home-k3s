@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: plex
+  namespace: plex
+spec:
+  replicas: 1
+  # Recreate (not RollingUpdate): the /config hostPath can't be mounted by two
+  # pods at once, and this is a single-node cluster with one GPU allocation.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: plex
+  template:
+    metadata:
+      labels:
+        app: plex
+    spec:
+      # Run under the NVIDIA container runtime so the injected GPU is usable for
+      # hardware transcoding. Requires the nvidia-device-plugin (core platform).
+      runtimeClassName: nvidia
+      containers:
+      - name: plex
+        image: lscr.io/linuxserver/plex:latest
+        env:
+        # linuxserver image starts as root then drops to this uid/gid (s6). The
+        # media + config on the host are owned by 1000:1000.
+        - name: PUID
+          value: "1000"
+        - name: PGID
+          value: "1000"
+        - name: VERSION
+          value: docker
+        # Expose all driver capabilities (video/compute/utility) to Plex.
+        # NVIDIA_VISIBLE_DEVICES is intentionally NOT set — the device plugin
+        # injects the specific GPU it allocates; forcing "all" bypasses that.
+        - name: NVIDIA_DRIVER_CAPABILITIES
+          value: all
+        ports:
+        - name: pms
+          containerPort: 32400
+        resources:
+          requests:
+            cpu: 100m
+            memory: 512Mi
+          limits:
+            # One whole GPU (the node has two GTX 1050 Ti). Must be in limits.
+            nvidia.com/gpu: 1
+        volumeMounts:
+        - name: config
+          mountPath: /config
+        - name: movies
+          mountPath: /data/movies
+        - name: tvshows
+          mountPath: /data/tvshows
+      volumes:
+      # Media and config stay where they are on the host — nothing is moved.
+      - name: config
+        hostPath:
+          path: /mnt/main/config/plex
+          type: Directory
+      - name: movies
+        hostPath:
+          path: /mnt/media/Movies
+          type: Directory
+      - name: tvshows
+        hostPath:
+          path: /mnt/media/TV
+          type: Directory

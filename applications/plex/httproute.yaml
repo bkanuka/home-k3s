@@ -1,0 +1,89 @@
+# Plex is reached by HOSTNAME at the host root (Plex's web app does not relocate
+# cleanly under a URL prefix like /plex), served over HTTPS through the shared
+# gateway. TLS is terminated at the gateway's wildcard `https` listener, whose
+# *.home.bkanuka.com cert is issued by cert-manager via DNS-01 (Gandi webhook);
+# see ../../gateway and ../../cert-manager.
+#
+# DNS: plex.home.bkanuka.com must resolve to the gateway's public IP. Easiest is
+# a wildcard `*.home.bkanuka.com` CNAME -> home.bkanuka.com at Gandi, with
+# ddns-updater keeping home.bkanuka.com pointed at your dynamic WAN IP.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: plex
+  namespace: plex
+spec:
+  parentRefs:
+  # Attach ONLY to the wildcard HTTPS listener — serves real traffic over TLS.
+  - group: gateway.networking.k8s.io
+    name: home-gateway
+    namespace: istio-system
+    kind: Gateway
+    sectionName: https
+  hostnames:
+  - plex.home.bkanuka.com
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /
+    backendRefs:
+    - name: plex
+      port: 32400
+      weight: 1
+---
+# Send any plaintext HTTP request for the Plex host to HTTPS. Bound to the :80
+# listener only (sectionName: http) so it never loops on the HTTPS listener. The
+# ACME challenge path cert-manager serves on :80 is an exact/longer match, so it
+# takes precedence over this catch-all redirect and still succeeds.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: plex-https-redirect
+  namespace: plex
+spec:
+  parentRefs:
+  - group: gateway.networking.k8s.io
+    name: home-gateway
+    namespace: istio-system
+    kind: Gateway
+    sectionName: http
+  hostnames:
+  - plex.home.bkanuka.com
+  rules:
+  - filters:
+    - type: RequestRedirect
+      requestRedirect:
+        scheme: https
+        statusCode: 301
+---
+# The ApplicationSet gives every app an Argo CD external link of /<app-name>,
+# i.e. /plex on the gateway. Plex isn't served there (it's on its own hostname),
+# so redirect /plex -> https://plex.home.bkanuka.com/ to keep that link working.
+# No hostname + sectionName: http so it only matches plain HTTP on the gateway IP.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: plex-redirect
+  namespace: plex
+spec:
+  parentRefs:
+  - group: gateway.networking.k8s.io
+    name: home-gateway
+    namespace: istio-system
+    kind: Gateway
+    sectionName: http
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /plex
+    filters:
+    - type: RequestRedirect
+      requestRedirect:
+        scheme: https
+        hostname: plex.home.bkanuka.com
+        path:
+          type: ReplaceFullPath
+          replaceFullPath: /
+        statusCode: 302

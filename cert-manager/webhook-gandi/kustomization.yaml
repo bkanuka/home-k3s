@@ -1,0 +1,30 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# SINTEF cert-manager DNS-01 webhook for Gandi (https://github.com/SINTEF/
+# cert-manager-webhook-gandi). Lets cert-manager solve ACME DNS-01 challenges via
+# the Gandi API, which enables WILDCARD certs (*.home.bkanuka.com) — something
+# HTTP-01 cannot do.
+#
+# Installed AFTER the cert-manager core (see ../ and install.sh): the chart's
+# pki.yaml creates cert-manager Issuer/Certificate CRs for the webhook's own
+# serving cert, so cert-manager's CRDs must already be established.
+#
+# The webhook reads a Secret named `gandi-credentials` (key `pat`) in the
+# cert-manager namespace (the chart's RBAC hardcodes that exact name). The secret
+# is NOT part of this build — install.sh materializes it at bootstrap from a PAT
+# file on the server (/mnt/main/config/cert-manager/gandi-pat) via
+# `kubectl create secret ... --from-file`, so the token never lands in git.
+helmCharts:
+- name: cert-manager-webhook-gandi
+  repo: https://sintef.github.io/cert-manager-webhook-gandi
+  version: v0.6.0
+  releaseName: cert-manager-webhook-gandi
+  namespace: cert-manager
+  valuesInline:
+    certManager:
+      namespace: cert-manager
+      # cert-manager's controller ServiceAccount — granted the domain-solver role.
+      serviceAccountName: cert-manager
+    # groupName left at the chart default (acme.bwolf.me); the ClusterIssuer
+    # solver references the same value.

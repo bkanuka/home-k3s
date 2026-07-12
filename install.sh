@@ -85,11 +85,65 @@ echo "    Waiting for istiod..."
 kubectl wait --for=condition=Available deployment/istiod \
     -n istio-system --timeout=300s
 
+# ── cert-manager ───────────────────────────────────────────────────────────────
+# Issues Let's Encrypt TLS certs for the gateway's HTTPS listeners. Installed via
+# Helm (--enable-helm) with the Gateway API integration enabled. The ClusterIssuer
+# is applied separately below because its validating webhook rejects the CR until
+# the webhook pod is ready (same reason MetalLB's config is applied with a retry).
+echo "==> Installing cert-manager..."
+kustomize build --enable-helm "$DIR/cert-manager" \
+    | kubectl apply --server-side --force-conflicts -f -
+
+echo "    Waiting for cert-manager webhook..."
+kubectl wait --for=condition=Available deployment/cert-manager-webhook \
+    -n cert-manager --timeout=300s
+
+# Gandi DNS-01 webhook — installed after cert-manager so its Issuer/Certificate
+# CRs (self-signed serving cert) apply against established CRDs.
+echo "==> Installing Gandi DNS-01 webhook..."
+kustomize build --enable-helm "$DIR/cert-manager/webhook-gandi" \
+    | kubectl apply --server-side --force-conflicts -f -
+
+# Materialize the `gandi-credentials` Secret from the PAT file on this server.
+# The token stays a host file (never in git); the webhook reads this Secret at
+# challenge time. Name/key are fixed (the chart RBAC + ClusterIssuer reference
+# them). apply-from-dry-run makes it idempotent on re-runs.
+GANDI_PAT_FILE="/mnt/main/config/cert-manager/gandi-pat"
+if [ ! -f "$GANDI_PAT_FILE" ]; then
+    echo "ERROR: Gandi PAT file not found at $GANDI_PAT_FILE"
+    echo "       Create it with your (rotated) Gandi Personal Access Token:"
+    echo "         sudo mkdir -p \$(dirname $GANDI_PAT_FILE)"
+    echo "         printf '%s' '<YOUR_GANDI_PAT>' | sudo tee $GANDI_PAT_FILE >/dev/null"
+    echo "       then re-run this script."
+    exit 1
+fi
+echo "==> Creating gandi-credentials Secret from $GANDI_PAT_FILE..."
+kubectl create secret generic gandi-credentials -n cert-manager \
+    --from-file=pat="$GANDI_PAT_FILE" \
+    --dry-run=client -o yaml | kubectl apply -f -
+
+echo "    Waiting for Gandi webhook..."
+kubectl wait --for=condition=Available deployment/cert-manager-webhook-gandi \
+    -n cert-manager --timeout=300s
+
+echo "==> Configuring Let's Encrypt ClusterIssuers..."
+until kubectl apply -f "$DIR/cert-manager/clusterissuer.yaml" 2>/dev/null; do
+    echo "    Webhook not ready yet, retrying..."
+    sleep 3
+done
+
 # ── Shared Gateway ─────────────────────────────────────────────────────────────
 # A single Gateway is shared by every service in the cluster. MetalLB assigns it
 # one LoadBalancer IP; each service attaches via an HTTPRoute parentRef.
 echo "==> Installing shared gateway..."
 kustomize build "$DIR/gateway" | kubectl apply -f -
+
+# ── NVIDIA device plugin ───────────────────────────────────────────────────────
+# k3s already registers the `nvidia` RuntimeClass (auto-detected container
+# runtime). The device plugin advertises `nvidia.com/gpu` so GPU workloads (Plex)
+# can be scheduled and transcode in hardware. Runs under runtimeClassName: nvidia.
+echo "==> Installing NVIDIA device plugin..."
+kustomize build "$DIR/nvidia-device-plugin" | kubectl apply -f -
 
 # ── Argo CD ─────────────────────────────────────────────────────────────────────
 # One-time bootstrap of Argo CD via kustomize (install manifest + /argocd config

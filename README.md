@@ -81,7 +81,10 @@ reconciles itself from git via a self-managing `Application`.
 | `kustomization.yaml` | Root kustomization for the **core platform only**.            |
 | `metallb/`      | MetalLB manifests + `config.yaml` (IP pool & L2 advertisement).    |
 | `istio/`        | Istio (ingress-only) install via Helm charts inflated by kustomize. |
-| `gateway/`      | The single **shared Gateway** (`home-gateway`) used by all services. |
+| `gateway/`      | The single **shared Gateway** (`home-gateway`) — HTTP :80 + HTTPS :443 listeners. |
+| `nvidia-device-plugin/` | NVIDIA k8s device plugin — advertises `nvidia.com/gpu` for GPU workloads (Plex). |
+| `cert-manager/` | cert-manager (Helm) + Let's Encrypt `ClusterIssuer`s for gateway TLS. |
+| `cert-manager/webhook-gandi/` | SINTEF Gandi DNS-01 webhook — enables wildcard certs. |
 | `argocd/`       | Self-managed Argo CD: kustomize install + `/argocd` config + HTTPRoute + `ApplicationSet` + the self-managing `Application`. |
 | `applications/` | **GitOps-managed services.** One folder per app; Argo CD deploys each. |
 | `applications/httpbin/` | Sample app — an `HTTPRoute` attached to the shared Gateway. |
@@ -96,6 +99,9 @@ Pinned in `install.sh`:
 | Istio         | 1.29.2    |
 | Gateway API   | v1.4.0    |
 | MetalLB       | v0.16.0   |
+| cert-manager  | v1.21.0   |
+| cert-manager-webhook-gandi | v0.6.0 |
+| NVIDIA device plugin | v0.19.3 |
 | Argo CD       | v3.4.5 *(pinned in `argocd/kustomization.yaml`, since Argo CD is GitOps-managed)* |
 
 ## Prerequisites
@@ -223,3 +229,56 @@ defeats the single-entrypoint design). Reuse the shared `home-gateway`.
 Argo CD detects the new folder, creates an `Application`, and deploys it. All
 services share the single `home-gateway` IP; routing is done by the `HTTPRoute`
 rules, not by separate load-balancer IPs.
+
+## Exposing services to the internet (TLS)
+
+The gateway is reachable from the internet at `home.bkanuka.com` (and
+subdomains). The pieces:
+
+1. **Fixed LAN IP.** MetalLB pins the gateway to **`192.168.1.200`**
+   ([`metallb/config.yaml`](metallb/config.yaml)).
+2. **Dynamic DNS.** The WAN IP is dynamic, so **`ddns-updater`**
+   ([`applications/ddns-updater/`](applications/ddns-updater/)) keeps the single
+   apex **`home.bkanuka.com`** A record pointed at it via the Gandi API. Add a
+   static wildcard **`*.home.bkanuka.com` CNAME → `home.bkanuka.com`** at Gandi so
+   every service subdomain (e.g. `plex.home.bkanuka.com`) resolves through it —
+   no need to list each subdomain in ddns-updater.
+3. **Router port-forward (UniFi).** Forward inbound **TCP 443** to
+   `192.168.1.200` (forward **80** too if you want HTTP→HTTPS redirects to work
+   from outside; it is *not* needed for certificates — see below).
+4. **TLS (wildcard + apex, DNS-01).** The gateway has two **HTTPS :443 listeners**
+   — one for **`*.home.bkanuka.com`** and one for the apex **`home.bkanuka.com`**
+   (wildcards don't match the apex) — both referencing the same TLS Secret. The
+   `cert-manager.io/cluster-issuer: letsencrypt` annotation on the Gateway makes
+   **cert-manager** issue **one** Let's Encrypt cert whose SANs are the union of
+   both listener hostnames. The challenge is **DNS-01** via the Gandi webhook
+   ([`cert-manager/webhook-gandi/`](cert-manager/webhook-gandi/)) — it creates a
+   TXT record through the Gandi API, so it needs **no inbound ports** and covers
+   every subdomain at once. Validate with the `letsencrypt-staging` issuer first
+   to avoid production rate limits, then switch the annotation to `letsencrypt`.
+
+Because the cert is a wildcard, exposing a new service needs **no gateway
+change**: just give the app an `HTTPRoute` with `sectionName: https` for its
+`<name>.home.bkanuka.com` host plus an HTTP→HTTPS redirect route (see
+[`applications/plex/httproute.yaml`](applications/plex/httproute.yaml) as the
+template).
+
+> **⚠️ Gandi token — two files on the server (never in git).** Both consume the
+> **same** (rotated) Gandi Personal Access Token, kept as files on the k3s host:
+>
+> ```bash
+> # 1. ddns-updater — full provider config JSON (format: config.json.example).
+> #    Mounted into the pod via hostPath (see applications/ddns-updater/).
+> #    Must be readable/writable by UID 1000.
+> /mnt/main/config/ddns-updater/config.json
+>
+> # 2. cert-manager Gandi webhook — a file containing ONLY the raw PAT:
+> sudo mkdir -p /mnt/main/config/cert-manager
+> printf '%s' '<YOUR_GANDI_PAT>' | sudo tee /mnt/main/config/cert-manager/gandi-pat >/dev/null
+> ```
+>
+> `install.sh` turns file #2 into the `gandi-credentials` Secret at bootstrap
+> (`kubectl create secret generic gandi-credentials -n cert-manager --from-file=pat=...`,
+> applied idempotently); it aborts if the file is missing. Until both files
+> exist, ddns-updater can't read its config and cert issuance fails at the DNS-01
+> step.

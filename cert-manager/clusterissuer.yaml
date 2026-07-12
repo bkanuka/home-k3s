@@ -1,0 +1,51 @@
+# Let's Encrypt issuers using the DNS-01 challenge, solved through the SINTEF
+# Gandi webhook (see webhook-gandi/). DNS-01 proves domain control by creating a
+# TXT record via the Gandi API, so it needs NO inbound ports and CAN issue
+# wildcard certs (*.home.bkanuka.com).
+#
+# The webhook reads the Gandi Personal Access Token from a Secret named
+# `gandi-credentials` (key `pat`) in the cert-manager namespace — created
+# out-of-band (NOT in git); see the README.
+#
+# `letsencrypt-staging` has high rate limits and issues untrusted certs — use it
+# to validate the flow, then switch the gateway annotation to `letsencrypt`
+# (production), which has strict rate limits.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: bkanuka@gmail.com
+    privateKeySecretRef:
+      name: letsencrypt-account-key
+    solvers:
+    - dns01:
+        webhook:
+          groupName: acme.bwolf.me
+          solverName: gandi
+          config:
+            patSecretRef:
+              name: gandi-credentials
+              key: pat
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: bkanuka@gmail.com
+    privateKeySecretRef:
+      name: letsencrypt-staging-account-key
+    solvers:
+    - dns01:
+        webhook:
+          groupName: acme.bwolf.me
+          solverName: gandi
+          config:
+            patSecretRef:
+              name: gandi-credentials
+              key: pat

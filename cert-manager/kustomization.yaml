@@ -1,0 +1,31 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# cert-manager — core platform (bootstrapped by install.sh, NOT Argo CD).
+# Issues Let's Encrypt TLS certs for the shared gateway's HTTPS listeners.
+#
+# Installed via Helm inflated by kustomize (same mechanism as istio/), so it
+# needs `kustomize build --enable-helm`. The ClusterIssuer is intentionally NOT
+# built here — it is a cert-manager CRD that its validating webhook rejects until
+# the webhook pod is ready, so install.sh applies clusterissuer.yaml separately
+# (with a retry), mirroring how metallb/config.yaml is applied.
+resources:
+- namespace.yaml
+
+helmCharts:
+- name: cert-manager
+  repo: https://charts.jetstack.io
+  version: v1.21.0
+  releaseName: cert-manager
+  namespace: cert-manager
+  includeCRDs: true
+  valuesInline:
+    crds:
+      enabled: true
+    # Enable the Gateway API integration so cert-manager reconciles certs for
+    # Gateway listeners annotated with cert-manager.io/cluster-issuer.
+    config:
+      apiVersion: controller.config.cert-manager.io/v1alpha1
+      kind: ControllerConfiguration
+      gatewayAPI:
+        enable: true

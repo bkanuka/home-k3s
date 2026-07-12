@@ -1,5 +1,7 @@
-# Adjust the address range to match your home network.
-# These IPs must be unused on your LAN (outside your router's DHCP range).
+# Single fixed IP for the whole cluster. There is exactly one LoadBalancer
+# service (the shared home-gateway), so the pool is pinned to one address:
+# the gateway always gets 192.168.1.200. This is the IP the router forwards
+# 80/443 to. Must be unused on the LAN and outside the router's DHCP range.
 apiVersion: metallb.io/v1beta1
 kind: IPAddressPool
 metadata:
@@ -7,7 +9,7 @@ metadata:
   namespace: metallb-system
 spec:
   addresses:
-  - 192.168.1.200-192.168.1.220
+  - 192.168.1.200/32
 ---
 apiVersion: metallb.io/v1beta1
 kind: L2Advertisement

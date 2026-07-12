@@ -1,0 +1,51 @@
+# NVIDIA k8s device plugin (pinned v0.19.3).
+#
+# Advertises `nvidia.com/gpu` on the node so pods (e.g. Plex) can request a GPU
+# for hardware transcoding. Based on NVIDIA's upstream static manifest, with one
+# change for k3s: `runtimeClassName: nvidia`.
+#
+# k3s auto-detects the NVIDIA container runtime and registers the `nvidia`
+# RuntimeClass, but does NOT make it the default runtime. The plugin talks to the
+# driver via NVML, so it must itself run under the nvidia runtime to see the GPUs
+# — hence runtimeClassName below. Any workload that requests nvidia.com/gpu must
+# likewise set `runtimeClassName: nvidia` (see applications/plex).
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: nvidia-device-plugin-daemonset
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      name: nvidia-device-plugin-ds
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        name: nvidia-device-plugin-ds
+    spec:
+      # Run under the nvidia container runtime so the plugin can enumerate GPUs.
+      runtimeClassName: nvidia
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+      # Mark this pod as a critical add-on so it is rescheduled after a failure.
+      priorityClassName: "system-node-critical"
+      containers:
+      - image: nvcr.io/nvidia/k8s-device-plugin:v0.19.3
+        name: nvidia-device-plugin-ctr
+        env: []
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+        volumeMounts:
+        - name: kubelet-device-plugins-dir
+          mountPath: /var/lib/kubelet/device-plugins
+      volumes:
+      - name: kubelet-device-plugins-dir
+        hostPath:
+          path: /var/lib/kubelet/device-plugins
+          type: Directory

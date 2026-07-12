@@ -1,0 +1,12 @@
+{
+  "settings": [
+    {
+      "provider": "gandi",
+      "domain": "home.bkanuka.com",
+      "personal_access_token": "REPLACE_WITH_ROTATED_GANDI_TOKEN",
+      "ttl": 3600,
+      "ip_version": "ipv4",
+      "ipv6_suffix": ""
+    }
+  ]
+}

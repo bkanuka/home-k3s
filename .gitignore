@@ -8,8 +8,14 @@ __pycache__/
 
 # Helm charts pulled on demand by `kustomize build --enable-helm`
 istio/charts/
+cert-manager/charts/
+cert-manager/webhook-gandi/charts/
 
 # Kubeconfig / secrets (never commit)
 *.kubeconfig
 kubeconfig
 k3s.yaml
+
+# ddns-updater secrets & runtime state (only the .example belongs in git)
+applications/ddns-updater/data/
+applications/ddns-updater/config.json

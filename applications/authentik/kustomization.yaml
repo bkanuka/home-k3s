@@ -35,4 +35,5 @@ configMapGenerator:
   - blueprints/00-identity.yaml
   - blueprints/10-app-httpbin.yaml
   - blueprints/10-app-ddns-updater.yaml
+  - blueprints/10-app-argocd.yaml
   - blueprints/20-outpost.yaml

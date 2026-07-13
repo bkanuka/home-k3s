@@ -5,8 +5,9 @@ namespace: argocd
 
 # Everything Argo CD needs, as one kustomize build:
 #   - the upstream install manifest (pinned version)
-#   - the /argocd subpath + insecure config (patched into argocd-cmd-params-cm)
-#   - the gateway HTTPRoute exposing it at /argocd
+#   - insecure config (patched into argocd-cmd-params-cm)
+#   - OIDC SSO via Authentik + RBAC (patched into argocd-cm / argocd-rbac-cm)
+#   - the gateway HTTPRoute exposing it at argocd.home.bkanuka.com
 #   - the ApplicationSet that deploys applications/*
 #   - the self-managing Argo CD Application (see application.yaml)
 #
@@ -21,9 +22,19 @@ resources:
 - application.yaml
 
 patches:
-# Serve Argo CD over HTTP under /argocd (see comments in the patch file).
+# Serve Argo CD over plain HTTP behind the gateway (insecure mode).
 # Merged into the upstream argocd-cmd-params-cm, leaving its other keys intact.
 - path: cmd-params-patch.yaml
   target:
     kind: ConfigMap
     name: argocd-cmd-params-cm
+# OIDC SSO via Authentik (url + oidc.config) merged into argocd-cm.
+- path: cm-patch.yaml
+  target:
+    kind: ConfigMap
+    name: argocd-cm
+# RBAC: Authentik home-admins group -> Argo CD admin, merged into argocd-rbac-cm.
+- path: rbac-patch.yaml
+  target:
+    kind: ConfigMap
+    name: argocd-rbac-cm

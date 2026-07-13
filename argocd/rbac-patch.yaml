@@ -1,0 +1,12 @@
+# Strategic-merge patch into the upstream argocd-rbac-cm: grant Argo CD admin to
+# members of the Authentik `home-admins` group (via the OIDC groups claim). Other
+# authenticated SSO users fall through to the built-in default (no access).
+# `scopes: [groups]` tells Argo CD to match RBAC on the groups claim.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm
+data:
+  policy.csv: |
+    g, home-admins, role:admin
+  scopes: '[groups]'

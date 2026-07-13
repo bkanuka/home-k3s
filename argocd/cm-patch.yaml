@@ -1,0 +1,19 @@
+# Strategic-merge patch into the upstream argocd-cm: point Argo CD at Authentik
+# for OIDC SSO. `url` is required so Argo CD builds correct OIDC redirect URLs
+# behind the TLS-terminating gateway. PKCE (public client) means no clientSecret.
+# The local `admin` account stays enabled as a break-glass fallback.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+data:
+  url: https://argocd.home.bkanuka.com
+  oidc.config: |
+    name: Authentik
+    issuer: https://authentik.home.bkanuka.com/application/o/argocd/
+    clientID: argocd
+    enablePKCEAuthentication: true
+    requestedScopes: ["openid", "profile", "email"]
+    requestedIDTokenClaims:
+      groups:
+        essential: true

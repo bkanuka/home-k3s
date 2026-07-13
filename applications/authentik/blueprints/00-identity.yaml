@@ -1,11 +1,8 @@
-# Shared identity: the Google login source, the single permitted user, and the
-# access group every protected app binds to. Numeric prefix biases Authentik to
-# apply this before the per-app files, so their !Find of the group resolves.
-# (Within this file, !KeyOf ties the entries together; cross-file references in
-# the other blueprints use !Find by identifier.)
+# Login identity source: the Google OAuth source and its "Login with Google"
+# button on the default login page. Users and groups live in 00-users-groups.yaml.
 version: 1
 metadata:
-  name: home identity — Google source + user + access group
+  name: home identity — Google source
 entries:
   # --- Google OAuth source ("Login with Google") ---
   - model: authentik_sources_oauth.oauthsource
@@ -32,23 +29,3 @@ entries:
     attrs:
       sources:
         - !KeyOf source-google
-
-  # --- The only permitted user ---
-  - model: authentik_core.user
-    id: user-bkanuka
-    identifiers:
-      username: bkanuka
-    attrs:
-      name: Bennett Kanuka
-      email: bkanuka@gmail.com
-      is_active: true
-      path: users
-
-  # --- Shared access group (just that user); every protected app binds to it ---
-  - model: authentik_core.group
-    id: group-access
-    identifiers:
-      name: home-app-access
-    attrs:
-      users:
-        - !KeyOf user-bkanuka

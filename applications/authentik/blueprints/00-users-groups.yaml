@@ -1,0 +1,39 @@
+# Principals: the permitted user and the groups. Applied before the per-app
+# blueprints (00 prefix) so their !Find of home-app-access resolves.
+#
+# Two groups, kept separate by concern:
+#   - home-app-access : gates which apps the user may reach (forward-auth bindings)
+#   - home-admins     : is_superuser=true -> grants Authentik admin/superuser
+version: 1
+metadata:
+  name: home users + groups
+entries:
+  # --- The only permitted user ---
+  - model: authentik_core.user
+    id: user-bkanuka
+    identifiers:
+      username: bkanuka
+    attrs:
+      name: Bennett Kanuka
+      email: bkanuka@gmail.com
+      is_active: true
+      path: users
+
+  # --- App-access group (forward-auth bindings reference this by name) ---
+  - model: authentik_core.group
+    id: group-access
+    identifiers:
+      name: home-app-access
+    attrs:
+      users:
+        - !KeyOf user-bkanuka
+
+  # --- Admin group: is_superuser grants full Authentik admin to its members ---
+  - model: authentik_core.group
+    id: group-admins
+    identifiers:
+      name: home-admins
+    attrs:
+      is_superuser: true
+      users:
+        - !KeyOf user-bkanuka

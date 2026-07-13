@@ -31,6 +31,7 @@ resources:
 configMapGenerator:
 - name: authentik-blueprints
   files:
+  - blueprints/00-users-groups.yaml
   - blueprints/00-identity.yaml
   - blueprints/10-app-httpbin.yaml
   - blueprints/10-app-ddns-updater.yaml

@@ -1,5 +1,7 @@
-# Brand customization for the default brand. Clear the login/flow background image
-# so pages use a plain (theme) background instead of Authentik's stock photo.
+# Brand customization for the default brand. Replace the login/flow background
+# with a 1x1 transparent pixel so pages render with a plain (theme) background
+# instead of Authentik's stock photo. (An empty string is silently ignored by the
+# blueprint importer, so we use a transparent data-URI image instead.)
 version: 1
 metadata:
   name: home brand customization
@@ -8,4 +10,4 @@ entries:
     identifiers:
       domain: authentik-default
     attrs:
-      branding_default_flow_background: ""
+      branding_default_flow_background: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="

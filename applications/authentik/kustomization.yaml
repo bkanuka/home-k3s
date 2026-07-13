@@ -1,6 +1,11 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
+# Set on all resources so the generated ConfigMap lands in `authentik` too —
+# otherwise its namespace wouldn't match the Deployments and kustomize wouldn't
+# rewrite the hashed name into their volume refs.
+namespace: authentik
+
 # Authentik (plain manifests — no Helm, so Argo CD needs no --enable-helm).
 # Identity provider brokering Google logins; protects httpbin via ext_authz
 # forward-auth (see ../../istio meshConfig + ../httpbin/authorizationpolicy.yaml).
@@ -14,5 +19,14 @@ resources:
 - redis.yaml
 - server.yaml
 - worker.yaml
-- blueprints.yaml
 - httproute.yaml
+
+# Turn each file under blueprints/ into the authentik-blueprints ConfigMap (one
+# data key per file). configMapGenerator embeds files verbatim, so the blueprint's
+# !Env/!Find/!KeyOf tags survive. The name-suffix hash means a blueprint edit
+# produces a new ConfigMap name, which kustomize rewrites into the server/worker
+# volume refs — so Argo rolls both pods automatically and the worker re-applies.
+configMapGenerator:
+- name: authentik-blueprints
+  files:
+  - blueprints/home-forward-auth.yaml

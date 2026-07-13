@@ -1,0 +1,132 @@
+# Authentik configuration-as-code. This file is turned into the
+# `authentik-blueprints` ConfigMap by the configMapGenerator in
+# ../kustomization.yaml, mounted into server+worker at /blueprints/custom, and
+# applied automatically by the worker. Defines "Google login, only
+# bkanuka@gmail.com, protecting httpbin + ddns-updater" — no click-ops.
+#
+# OAuth secrets are NOT in git: referenced via `!Env` and injected from the
+# authentik-secrets Secret (see ../secret.env.example). configMapGenerator embeds
+# this file verbatim (opaque), so the !Env / !Find / !KeyOf tags pass through.
+#
+# NOTE: Authentik's blueprint schema is version-sensitive (flow slugs, enum
+# values, required fields). Check the worker logs / Admin > Customization >
+# Blueprints for apply errors after changes.
+version: 1
+metadata:
+  name: forward-auth (Google login, single user) — httpbin + ddns-updater
+entries:
+  # --- Google OAuth source ("Login with Google") ---
+  - model: authentik_sources_oauth.oauthsource
+    id: source-google
+    identifiers:
+      slug: google
+    attrs:
+      name: Google
+      provider_type: google
+      consumer_key: !Env GOOGLE_CLIENT_ID
+      consumer_secret: !Env GOOGLE_CLIENT_SECRET
+      enabled: true
+      # Link Google logins to EXISTING users by verified email. With no
+      # enrollment flow set, any Google account without a pre-created match
+      # is rejected — that plus the single user below locks it to one person.
+      user_matching_mode: email_link
+      authentication_flow: !Find [authentik_flows.flow, [slug, default-source-authentication]]
+
+  # Attach the Google source to the default login page's identification stage
+  # so the "Login with Google" button actually appears (the source existing is
+  # not enough — the stage's `sources` list controls which buttons show). The
+  # username/password fields still work (for akadmin) — this only adds Google.
+  - model: authentik_stages_identification.identificationstage
+    identifiers:
+      name: default-authentication-identification
+    attrs:
+      sources:
+        - !KeyOf source-google
+
+  # --- The only permitted user ---
+  - model: authentik_core.user
+    id: user-bkanuka
+    identifiers:
+      username: bkanuka
+    attrs:
+      name: Bennett Kanuka
+      email: bkanuka@gmail.com
+      is_active: true
+      path: users
+
+  # --- Shared access group (just that user); every protected app binds to it ---
+  - model: authentik_core.group
+    id: group-access
+    identifiers:
+      name: home-app-access
+    attrs:
+      users:
+        - !KeyOf user-bkanuka
+
+  # ======================= httpbin =======================
+  - model: authentik_providers_proxy.proxyprovider
+    id: provider-httpbin
+    identifiers:
+      name: httpbin
+    attrs:
+      mode: forward_single
+      external_host: https://httpbin.home.bkanuka.com
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+  - model: authentik_core.application
+    id: app-httpbin
+    identifiers:
+      slug: httpbin
+    attrs:
+      name: httpbin
+      provider: !KeyOf provider-httpbin
+  - model: authentik_policies.policybinding
+    identifiers:
+      target: !KeyOf app-httpbin
+      group: !KeyOf group-access
+      order: 0
+    attrs:
+      enabled: true
+
+  # ===================== ddns-updater =====================
+  - model: authentik_providers_proxy.proxyprovider
+    id: provider-ddns
+    identifiers:
+      name: ddns-updater
+    attrs:
+      mode: forward_single
+      external_host: https://ddns-updater.home.bkanuka.com
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+  - model: authentik_core.application
+    id: app-ddns
+    identifiers:
+      slug: ddns-updater
+    attrs:
+      name: ddns-updater
+      provider: !KeyOf provider-ddns
+  - model: authentik_policies.policybinding
+    identifiers:
+      target: !KeyOf app-ddns
+      group: !KeyOf group-access
+      order: 0
+    attrs:
+      enabled: true
+
+  # --- Embedded outpost: both providers; public URL for browser redirects ---
+  - model: authentik_outposts.outpost
+    identifiers:
+      name: authentik Embedded Outpost
+    attrs:
+      type: proxy
+      config:
+        # authentik_host must be the PUBLIC url: the forward-auth (envoy)
+        # redirect for unauthenticated users is built from authentik_host, not
+        # authentik_host_browser. The embedded outpost connects to authentik
+        # in-process regardless, so the public host here is safe.
+        authentik_host: https://authentik.home.bkanuka.com/
+        authentik_host_browser: https://authentik.home.bkanuka.com/
+        authentik_host_insecure: false
+      providers:
+        - !KeyOf provider-httpbin
+        - !KeyOf provider-ddns

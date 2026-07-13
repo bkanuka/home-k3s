@@ -1,0 +1,24 @@
+# Enforce Authentik forward-auth on the ddns-updater UI (same pattern as
+# httpbin). Lives in istio-system (the gateway's namespace) but owned by the
+# ddns-updater Argo app. Scoped to the ddns-updater host; the outpost's own
+# /outpost.goauthentik.io/* endpoints are excluded so the sign-in flow can run.
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: ddns-updater-ext-authz
+  namespace: istio-system
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: Gateway
+    name: home-gateway
+  action: CUSTOM
+  provider:
+    name: authentik
+  rules:
+  - to:
+    - operation:
+        hosts:
+        - ddns-updater.home.bkanuka.com
+        notPaths:
+        - /outpost.goauthentik.io/*

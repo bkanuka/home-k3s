@@ -1,7 +1,12 @@
-# ddns-updater web UI at ddns-updater.home.bkanuka.com over HTTPS (uniform
-# host-based routing), plus an HTTP->HTTPS redirect. ROOT_URL is already "/" and
-# the service listens on 8572. NOTE: this UI is UNAUTHENTICATED (like the other
-# non-httpbin services) — it's reachable by anyone who can hit the gateway.
+# ddns-updater web UI at ddns-updater.home.bkanuka.com over HTTPS, PROTECTED by
+# Authentik forward-auth (see authorizationpolicy.yaml + ../../istio meshConfig),
+# same pattern as httpbin. ROOT_URL is "/" and the service listens on 8572.
+#
+# Two rules (most-specific first):
+#   1. /outpost.goauthentik.io/*  -> Authentik embedded outpost (sign-in endpoints
+#      must live on THIS host; cross-namespace via the ReferenceGrant in
+#      applications/authentik/httproute.yaml).
+#   2. /                          -> ddns-updater (gated by ext_authz).
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
@@ -17,6 +22,15 @@ spec:
   hostnames:
   - ddns-updater.home.bkanuka.com
   rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /outpost.goauthentik.io
+    backendRefs:
+    - name: authentik-server
+      namespace: authentik
+      port: 9000
+      weight: 1
   - matches:
     - path:
         type: PathPrefix

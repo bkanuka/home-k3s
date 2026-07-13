@@ -47,19 +47,22 @@ spec:
         scheme: https
         statusCode: 301
 ---
-# Allow HTTPRoutes in OTHER namespaces (specifically httpbin) to route to the
-# authentik-server Service — needed because httpbin's route sends the
+# Allow HTTPRoutes in OTHER namespaces (the protected apps) to route to the
+# authentik-server Service — needed because each protected app's route sends the
 # /outpost.goauthentik.io/* sign-in paths to the embedded outpost here.
 apiVersion: gateway.networking.k8s.io/v1beta1
 kind: ReferenceGrant
 metadata:
-  name: allow-httpbin-to-authentik-server
+  name: allow-protected-apps-to-authentik-server
   namespace: authentik
 spec:
   from:
   - group: gateway.networking.k8s.io
     kind: HTTPRoute
     namespace: httpbin
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    namespace: ddns-updater
   to:
   - group: ""
     kind: Service

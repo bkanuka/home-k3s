@@ -1,0 +1,92 @@
+# qBittorrent behind a PIA VPN (j4ym0/pia-qbittorrent). Translated from the
+# working docker-compose. The container runs the WireGuard VPN + qBittorrent and
+# auto-syncs PIA's randomly-assigned forwarded port to qBittorrent's listen port
+# — that peer traffic flows through the VPN tunnel, NOT the gateway, so nothing
+# external changes when the port rotates. The gateway only serves the Web UI (8888).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qbittorrent
+  namespace: qbittorrent
+spec:
+  replicas: 1
+  # Recreate: the /config hostPath can't be mounted by two pods at once.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: qbittorrent
+  template:
+    metadata:
+      labels:
+        app: qbittorrent
+    spec:
+      containers:
+      - name: qbittorrent
+        image: j4ym0/pia-qbittorrent
+        securityContext:
+          capabilities:
+            # Needed to bring up the WireGuard interface (kernel WireGuard, so no
+            # /dev/net/tun required — same as the compose, which only adds NET_ADMIN).
+            add: ["NET_ADMIN"]
+        envFrom:
+        # PIA_USERNAME + PIA_PASSWORD (out of git — see pia.env.example; install.sh
+        # seeds this Secret from /mnt/main/config/pia/pia.env).
+        - secretRef:
+            name: pia-credentials
+        env:
+        - name: PIA_REGION
+          value: ca_toronto
+        - name: PORT_FORWARDING
+          value: "true"
+        - name: VPN_CLIENT
+          value: wireguard
+        - name: UID
+          value: "1000"
+        - name: GID
+          value: "1000"
+        - name: TZ
+          value: America/Toronto
+        # Behind the gateway + Authentik on a different hostname, so turn off
+        # qBittorrent's CSRF and Host-header checks (as in the compose).
+        - name: CSRFPROTECTION
+          value: "false"
+        - name: HOSTHEADERVALIDATION
+          value: "false"
+        ports:
+        - name: webui
+          containerPort: 8888
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+        volumeMounts:
+        - name: complete
+          mountPath: /downloads/complete
+        - name: temp
+          mountPath: /downloads/temp
+        - name: config
+          mountPath: /config
+        - name: mam                      # myanonamouse session cookie
+          mountPath: /mam
+      volumes:
+      - name: complete
+        hostPath:
+          path: /mnt/media/Unsorted
+          type: Directory
+      - name: temp
+        hostPath:
+          path: /mnt/media/Incomplete
+          type: Directory
+      - name: config
+        hostPath:
+          path: /mnt/main/config/qbittorrent
+          type: Directory
+      - name: mam
+        hostPath:
+          path: /mnt/main/config/qbittorrent/mam
+          type: DirectoryOrCreate
+# NOTE: the compose sets a 655360 nofile ulimit. Kubernetes has no per-pod ulimit
+# field; the pod inherits containerd's default LimitNOFILE (1048576 on k3s), which
+# is higher, so qBittorrent should be fine. If it ever hits the limit, raise it in
+# the containerd/k3s runtime config on the host (not settable in this manifest).

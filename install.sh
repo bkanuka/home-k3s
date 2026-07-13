@@ -187,6 +187,23 @@ else
     echo "    or create the authentik-secrets Secret manually."
 fi
 
+# ── PIA credentials for qbittorrent (out-of-band) ─────────────────────────────
+# qbittorrent's PIA VPN username/password — never in git. Seeded from a host env
+# file into the pia-credentials Secret (keys PIA_USERNAME, PIA_PASSWORD). Argo
+# doesn't manage it. Non-fatal if missing. See applications/qbittorrent/pia.env.example.
+PIA_ENV_FILE="/mnt/main/config/pia/pia.env"
+if [ -f "$PIA_ENV_FILE" ]; then
+    echo "==> Creating pia-credentials Secret from $PIA_ENV_FILE..."
+    kubectl create namespace qbittorrent --dry-run=client -o yaml | kubectl apply -f -
+    kubectl create secret generic pia-credentials -n qbittorrent \
+        --from-env-file="$PIA_ENV_FILE" \
+        --dry-run=client -o yaml | kubectl apply -f -
+else
+    echo "==> WARNING: $PIA_ENV_FILE not found — qbittorrent pod will stay pending"
+    echo "    until you create it (see applications/qbittorrent/pia.env.example) and"
+    echo "    re-run this script or create the pia-credentials Secret manually."
+fi
+
 # ── Summary ───────────────────────────────────────────────────────────────────
 echo ""
 echo "==> Installation complete!"

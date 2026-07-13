@@ -23,3 +23,7 @@ applications/ddns-updater/config.json
 # Authentik secret env (only the .example belongs in git; real file lives on the
 # server at /mnt/main/config/authentik/authentik.env)
 applications/authentik/authentik.env
+
+# PIA credentials for qbittorrent (only the .example belongs in git; real file
+# lives on the server at /mnt/main/config/pia/pia.env)
+applications/qbittorrent/pia.env

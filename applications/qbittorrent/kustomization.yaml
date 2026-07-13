@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# qBittorrent + PIA VPN. The Web UI is exposed at qbittorrent.home.bkanuka.com and
+# PROTECTED by Authentik forward-auth (authorizationpolicy.yaml). The PIA-forwarded
+# BitTorrent port is handled inside the pod (synced to qBittorrent's listen port
+# over the VPN tunnel) — it never touches the gateway.
+#
+# The `pia-credentials` Secret is NOT built here — install.sh materializes it from
+# /mnt/main/config/pia/pia.env (see pia.env.example). Until it exists, the pod fails.
+#
+# TIP: to avoid a double login (Authentik + qBittorrent's own), enable
+# qBittorrent's "Bypass authentication for clients in whitelisted IP subnets" for
+# the cluster pod CIDR (Options > Web UI) — Authentik already gates access.
+resources:
+- namespace.yaml
+- deployment.yaml
+- service.yaml
+- httproute.yaml
+# Authentik forward-auth enforcement (in istio-system, scoped to this host only).
+- authorizationpolicy.yaml

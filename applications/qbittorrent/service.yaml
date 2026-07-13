@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: qbittorrent
+  namespace: qbittorrent
+spec:
+  selector:
+    app: qbittorrent
+  ports:
+  # qBittorrent Web UI (this image serves it on 8888). The BitTorrent peer port is
+  # the PIA-forwarded one inside the VPN tunnel — not exposed here.
+  - name: webui
+    port: 8888
+    targetPort: 8888

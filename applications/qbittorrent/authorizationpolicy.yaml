@@ -1,0 +1,24 @@
+# Enforce Authentik forward-auth on the qBittorrent Web UI (same pattern as
+# httpbin/ddns-updater). In istio-system (the gateway's ns) but owned by this app.
+# Scoped to the qbittorrent host; the outpost's own /outpost.goauthentik.io/*
+# endpoints are excluded so the sign-in flow can run.
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: qbittorrent-ext-authz
+  namespace: istio-system
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: Gateway
+    name: home-gateway
+  action: CUSTOM
+  provider:
+    name: authentik
+  rules:
+  - to:
+    - operation:
+        hosts:
+        - qbittorrent.home.bkanuka.com
+        notPaths:
+        - /outpost.goauthentik.io/*

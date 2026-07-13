@@ -63,6 +63,9 @@ spec:
   - group: gateway.networking.k8s.io
     kind: HTTPRoute
     namespace: ddns-updater
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    namespace: qbittorrent
   to:
   - group: ""
     kind: Service

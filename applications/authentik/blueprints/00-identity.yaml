@@ -21,11 +21,18 @@ entries:
       user_matching_mode: email_link
       authentication_flow: !Find [authentik_flows.flow, [slug, default-source-authentication]]
 
-  # Attach the Google source to the login page's identification stage so the
-  # "Login with Google" button appears (the source existing isn't enough).
+  # Attach the Google source to the login page's identification stage, and make it
+  # Google-ONLY: user_fields: [] removes the username/email (and therefore the
+  # password) prompt, so the page shows nothing but the "Login with Google" button.
+  #
+  # ⚠️ This also disables username/password login for `akadmin` on the default
+  # flow. If Google login ever breaks you recover via cluster access, e.g.:
+  #   kubectl exec -n authentik deploy/authentik-server -- \
+  #     ak create_recovery_key 1 akadmin   # prints a one-time recovery URL
   - model: authentik_stages_identification.identificationstage
     identifiers:
       name: default-authentication-identification
     attrs:
+      user_fields: []
       sources:
         - !KeyOf source-google

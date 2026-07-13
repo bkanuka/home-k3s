@@ -92,5 +92,13 @@ data:
           name: authentik Embedded Outpost
         attrs:
           type: proxy
+          config:
+            # authentik_host: the outpost's own (server-side) URL — it runs inside
+            # the server pod, so localhost. authentik_host_browser: the URL the
+            # BROWSER is redirected to for login; without it the outpost redirects
+            # to http://localhost (unreachable). Must be the public host.
+            authentik_host: http://localhost:9000/
+            authentik_host_browser: https://authentik.home.bkanuka.com/
+            authentik_host_insecure: false
           providers:
             - !KeyOf provider-httpbin

@@ -44,7 +44,15 @@ spec:
   hostnames:
   - argocd.home.bkanuka.com
   rules:
-  - filters:
+  # Explicit match (PathPrefix /) even though it's redirect-only: the argocd app
+  # syncs with ServerSideApply, so it compares against the live object including
+  # the `matches` default Istio injects — omitting it here causes perpetual
+  # OutOfSync. (The ApplicationSet apps use client-side apply and don't need this.)
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /
+    filters:
     - type: RequestRedirect
       requestRedirect:
         scheme: https

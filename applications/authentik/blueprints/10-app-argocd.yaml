@@ -16,6 +16,11 @@ entries:
     attrs:
       client_type: public
       client_id: argocd
+      # Required in this Authentik version — defaults to [] (no grants), which
+      # makes the authorize request fail with "Invalid grant_type for provider".
+      grant_types:
+        - authorization_code
+        - refresh_token
       authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
       invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
       # ID tokens must be signed; use Authentik's default self-signed keypair.

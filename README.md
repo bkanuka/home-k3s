@@ -187,14 +187,25 @@ Argo CD is exposed **through the shared gateway** at
 running in insecure/HTTP mode behind the gateway (which terminates TLS with the
 wildcard cert) so it shares the single gateway IP with every other service.
 
-```bash
-# initial admin password
-kubectl -n argocd get secret argocd-initial-admin-secret \
-  -o jsonpath='{.data.password}' | base64 -d; echo
+**SSO via Authentik (OIDC).** Argo CD uses its built-in OIDC client — *not*
+forward-auth — against an Authentik OIDC provider
+([`applications/authentik/blueprints/10-app-argocd.yaml`](applications/authentik/blueprints/10-app-argocd.yaml)),
+so identity, group-based RBAC, and the `argocd` CLI all work. It's a **public
+client using PKCE**, so there's **no client secret** (nothing secret in git). The
+config lives in [`argocd/cm-patch.yaml`](argocd/cm-patch.yaml) (`url` + `oidc.config`)
+and [`argocd/rbac-patch.yaml`](argocd/rbac-patch.yaml), which maps the Authentik
+**`home-admins`** group to Argo CD `role:admin`. Log in via the **"Log in via
+Authentik"** button.
 
-# then open the UI (user: admin):
-#   https://argocd.home.bkanuka.com
-```
+> **Break-glass local admin.** The built-in `admin` account is intentionally left
+> enabled as a fallback for when SSO is unavailable (OIDC misconfig, Authentik
+> down). Its initial password:
+>
+> ```bash
+> kubectl -n argocd get secret argocd-initial-admin-secret \
+>   -o jsonpath='{.data.password}' | base64 -d; echo
+> # UI: https://argocd.home.bkanuka.com  (user: admin)
+> ```
 
 > **⚠️ Private repo access.** This repo is **private**, so Argo CD needs
 > credentials to read it. Either make the repo public (it contains no secrets —
@@ -356,7 +367,12 @@ the blueprint reads them via `!Env` from the `authentik-secrets` Secret.
 > Until it exists, the Authentik pods stay pending. Admin UI:
 > `authentik.home.bkanuka.com`, user `akadmin`, password = `AUTHENTIK_BOOTSTRAP_PASSWORD`.
 
-**Currently protected:** `httpbin`, `ddns-updater`. To protect another app, add a
-proxy provider + application + policy binding to the blueprint, register the
-provider with the embedded outpost, and copy the `AuthorizationPolicy` + outpost
-route carve-out (and extend the `ReferenceGrant`) — see `applications/httpbin/`.
+**Currently protected via forward-auth:** `httpbin`, `ddns-updater`. To protect
+another app, add a proxy provider + application + policy binding to the blueprint,
+register the provider with the embedded outpost, and copy the `AuthorizationPolicy`
++ outpost route carve-out (and extend the `ReferenceGrant`) — see `applications/httpbin/`.
+
+> **Apps that speak OIDC natively** (like Argo CD) should use their own OIDC client
+> against an Authentik OAuth2 provider instead of forward-auth — see
+> [GitOps with Argo CD](#gitops-with-argo-cd). Forward-auth is for apps with no
+> auth of their own.

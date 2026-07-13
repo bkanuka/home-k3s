@@ -21,12 +21,17 @@ resources:
 - worker.yaml
 - httproute.yaml
 
-# Turn each file under blueprints/ into the authentik-blueprints ConfigMap (one
-# data key per file). configMapGenerator embeds files verbatim, so the blueprint's
-# !Env/!Find/!KeyOf tags survive. The name-suffix hash means a blueprint edit
-# produces a new ConfigMap name, which kustomize rewrites into the server/worker
-# volume refs — so Argo rolls both pods automatically and the worker re-applies.
+# Turn each file under blueprints/ into a key in the authentik-blueprints
+# ConfigMap; Authentik treats each as a separate blueprint. configMapGenerator
+# embeds files verbatim, so the !Env/!Find/!KeyOf tags survive. The name-suffix
+# hash means any blueprint edit produces a new ConfigMap name, which kustomize
+# rewrites into the server/worker volume refs — so Argo rolls both pods and the
+# worker re-applies. Add a protected app by dropping a blueprints/NN-app-*.yaml
+# here and adding its provider to blueprints/20-outpost.yaml.
 configMapGenerator:
 - name: authentik-blueprints
   files:
-  - blueprints/home-forward-auth.yaml
+  - blueprints/00-identity.yaml
+  - blueprints/10-app-httpbin.yaml
+  - blueprints/10-app-ddns-updater.yaml
+  - blueprints/20-outpost.yaml

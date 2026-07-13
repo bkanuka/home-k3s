@@ -1,0 +1,28 @@
+# Protect ddns-updater with forward-auth (same shape as 10-app-httpbin.yaml).
+version: 1
+metadata:
+  name: app — ddns-updater (forward-auth)
+entries:
+  - model: authentik_providers_proxy.proxyprovider
+    id: provider-ddns
+    identifiers:
+      name: ddns-updater
+    attrs:
+      mode: forward_single
+      external_host: https://ddns-updater.home.bkanuka.com
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+  - model: authentik_core.application
+    id: app-ddns
+    identifiers:
+      slug: ddns-updater
+    attrs:
+      name: ddns-updater
+      provider: !KeyOf provider-ddns
+  - model: authentik_policies.policybinding
+    identifiers:
+      target: !KeyOf app-ddns
+      group: !Find [authentik_core.group, [name, home-app-access]]
+      order: 0
+    attrs:
+      enabled: true

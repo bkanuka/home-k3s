@@ -1,0 +1,25 @@
+# Register the protected apps' providers with the embedded outpost that Istio
+# ext_authz calls. `providers` is a REPLACE list, so all providers must be listed
+# here (one central file) — referenced by !Find since they live in the per-app
+# files. Numeric prefix biases this to apply after the providers exist. When you
+# add a protected app, add its provider name to this list.
+version: 1
+metadata:
+  name: embedded outpost — protected providers
+entries:
+  - model: authentik_outposts.outpost
+    identifiers:
+      name: authentik Embedded Outpost
+    attrs:
+      type: proxy
+      config:
+        # authentik_host must be the PUBLIC url: the forward-auth (envoy) redirect
+        # for unauthenticated users is built from authentik_host, not
+        # authentik_host_browser. The embedded outpost connects to authentik
+        # in-process regardless, so the public host here is safe.
+        authentik_host: https://authentik.home.bkanuka.com/
+        authentik_host_browser: https://authentik.home.bkanuka.com/
+        authentik_host_insecure: false
+      providers:
+        - !Find [authentik_providers_proxy.proxyprovider, [name, httpbin]]
+        - !Find [authentik_providers_proxy.proxyprovider, [name, ddns-updater]]

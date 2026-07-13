@@ -1,0 +1,54 @@
+# Shared identity: the Google login source, the single permitted user, and the
+# access group every protected app binds to. Numeric prefix biases Authentik to
+# apply this before the per-app files, so their !Find of the group resolves.
+# (Within this file, !KeyOf ties the entries together; cross-file references in
+# the other blueprints use !Find by identifier.)
+version: 1
+metadata:
+  name: home identity — Google source + user + access group
+entries:
+  # --- Google OAuth source ("Login with Google") ---
+  - model: authentik_sources_oauth.oauthsource
+    id: source-google
+    identifiers:
+      slug: google
+    attrs:
+      name: Google
+      provider_type: google
+      consumer_key: !Env GOOGLE_CLIENT_ID
+      consumer_secret: !Env GOOGLE_CLIENT_SECRET
+      enabled: true
+      # Link Google logins to EXISTING users by verified email. With no
+      # enrollment flow set, any Google account without a pre-created match is
+      # rejected — that plus the single user below locks it to one person.
+      user_matching_mode: email_link
+      authentication_flow: !Find [authentik_flows.flow, [slug, default-source-authentication]]
+
+  # Attach the Google source to the login page's identification stage so the
+  # "Login with Google" button appears (the source existing isn't enough).
+  - model: authentik_stages_identification.identificationstage
+    identifiers:
+      name: default-authentication-identification
+    attrs:
+      sources:
+        - !KeyOf source-google
+
+  # --- The only permitted user ---
+  - model: authentik_core.user
+    id: user-bkanuka
+    identifiers:
+      username: bkanuka
+    attrs:
+      name: Bennett Kanuka
+      email: bkanuka@gmail.com
+      is_active: true
+      path: users
+
+  # --- Shared access group (just that user); every protected app binds to it ---
+  - model: authentik_core.group
+    id: group-access
+    identifiers:
+      name: home-app-access
+    attrs:
+      users:
+        - !KeyOf user-bkanuka

@@ -163,6 +163,29 @@ kubectl rollout status deployment/argocd-server -n argocd --timeout=300s
 kubectl wait --for=condition=Available deployment/argocd-applicationset-controller \
     -n argocd --timeout=180s
 
+# ── Argo CD GitHub webhook secret (out-of-band) ───────────────────────────────
+# Lets GitHub notify Argo CD the instant you push (POST to /api/webhook) instead
+# of waiting for the ~3min polling reconcile. The shared secret is the HMAC key
+# Argo CD uses to verify the webhook's X-Hub-Signature; it must equal the "Secret"
+# field of the GitHub webhook (Settings -> Webhooks). Kept as a host file (never
+# in git), then MERGE-patched into the EXISTING argocd-secret so the server's own
+# keys (admin.password, server.secretkey, tls.*) are preserved — do NOT recreate
+# the Secret. Argo CD's settings watcher picks the key up live (no restart).
+# Non-fatal if missing: webhooks just won't be verified until you add it.
+ARGOCD_WEBHOOK_SECRET_FILE="/mnt/main/config/argocd/github-webhook-secret"
+if [ -f "$ARGOCD_WEBHOOK_SECRET_FILE" ]; then
+    echo "==> Patching argocd-secret with GitHub webhook secret..."
+    kubectl patch secret argocd-secret -n argocd --type merge \
+        -p "{\"stringData\":{\"webhook.github.secret\":\"$(tr -d '[:space:]' < "$ARGOCD_WEBHOOK_SECRET_FILE")\"}}"
+else
+    echo "==> WARNING: $ARGOCD_WEBHOOK_SECRET_FILE not found — GitHub webhook will"
+    echo "    not be enabled. Create it with a random secret, e.g.:"
+    echo "        sudo mkdir -p \$(dirname $ARGOCD_WEBHOOK_SECRET_FILE)"
+    echo "        openssl rand -hex 32 | sudo tee $ARGOCD_WEBHOOK_SECRET_FILE >/dev/null"
+    echo "    then re-run this script and add a GitHub webhook (application/json) to"
+    echo "    https://argocd.home.bkanuka.com/api/webhook with that same secret."
+fi
+
 # From here on, services in applications/ are managed by Argo CD via git, and so
 # is Argo CD itself. Push a change and Argo CD reconciles the cluster to match.
 

@@ -13,6 +13,13 @@ entries:
     identifiers:
       domain: authentik-default
     attrs:
+      # Force light mode for all flows. The brand's attributes feed into the
+      # anonymous user's settings, which the flow UI reads as settings.theme.base
+      # (default "automatic" follows the OS color scheme).
+      attributes:
+        settings:
+          theme:
+            base: light
       branding_custom_css: |
         body::before { background-image: none !important; }
         /* Set the flow page background color. */

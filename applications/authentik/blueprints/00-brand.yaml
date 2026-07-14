@@ -15,3 +15,9 @@ entries:
     attrs:
       branding_custom_css: |
         body::before { background-image: none !important; }
+        /* Set the flow page background color. */
+        body { --ak-global--background-color: rgb(240, 244, 249) !important; }
+        /* Hide the authentik logo header on flow pages. */
+        .pf-c-brand { display: none !important; }
+        /* Hide the language/locale selector in the flow footer. */
+        ak-locale-select { display: none !important; }

@@ -1,7 +1,10 @@
 # Brand customization for the default brand. Hide the login/flow background photo
 # via custom CSS. (The branding_default_flow_background field is a file-NAME field
 # — it rejects data URIs and the importer skips empty strings — so we can't clear
-# it directly; instead we override PatternFly's background element to no image.)
+# it directly.) As of authentik 2026.5 the background is painted by the `body::before`
+# pseudo-element from `background-image: var(--ak-global--background-image, none)`,
+# with the URL set as an inline custom property on <body>. Overriding the
+# pseudo-element rule wins because inline styles can't target ::before.
 version: 1
 metadata:
   name: home brand customization
@@ -11,4 +14,4 @@ entries:
       domain: authentik-default
     attrs:
       branding_custom_css: |
-        .pf-c-background-image { background-image: none !important; }
+        body::before { background-image: none !important; }

@@ -21,3 +21,5 @@ entries:
         .pf-c-brand { display: none !important; }
         /* Hide the language/locale selector in the flow footer. */
         ak-locale-select { display: none !important; }
+        /* Hide the "Powered by authentik" footer item (the only non-link entry). */
+        ak-brand-links li[data-kind="text"] { display: none !important; }

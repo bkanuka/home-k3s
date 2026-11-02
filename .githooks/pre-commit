@@ -1,7 +1,7 @@
 #!/bin/bash
 # pre-commit: refuse to commit plaintext Kubernetes Secrets or private keys.
 #
-# Every secret in this repo must be a SealedSecret (see sealed-secrets/). The
+# Every secret in this repo must be a SealedSecret (see platform/sealed-secrets/). The
 # plaintext Secret sits next to its *-sealed.yaml in the app dir and is kept out
 # by .gitignore; this hook is the backstop. It inspects the STAGED content (index,
 # not working tree) of the files added or changed in this commit and aborts if
@@ -52,7 +52,7 @@ if [ "${#plain[@]}" -gt 0 ]; then
     echo "✗ pre-commit: plaintext Kubernetes Secret manifest(s) staged:" >&2
     printf '    %s\n' "${plain[@]}" >&2
     echo "  Secrets must be committed as SealedSecrets: keep the plaintext file" >&2
-    echo "  git-ignored and commit the output of sealed-secrets/seal.sh <file> instead." >&2
+    echo "  git-ignored and commit the output of platform/sealed-secrets/seal.sh <file> instead." >&2
     fail=1
 fi
 

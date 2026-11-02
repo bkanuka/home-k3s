@@ -1,0 +1,75 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Platform app deployed by Argo CD; the base + istiod Helm charts are inflated by
+# kustomize inside Argo CD's repo-server (kustomize.buildOptions: --enable-helm).
+# istiod rewrites the caBundle/failurePolicy of its own webhook configs at
+# runtime — the platform ApplicationSet's ignoreDifferences covers that.
+resources:
+- namespace.yaml
+
+# Ingress-only Istio: just the control plane + Gateway API support. No mesh data
+# plane (no sidecars, no ambient ztunnel, no istio-cni). The Gateway is a plain
+# Envoy pod that istiod manages; it does not need the mesh to route traffic.
+#
+# To add mTLS/mesh later, re-introduce the cni + ztunnel charts (ambient) or
+# enable sidecar injection. Gateway-level auth (ext_authz / JWT) does NOT require
+# any of that — it is enforced on the gateway proxy regardless.
+helmCharts:
+# 1. Base: CRDs and cluster-scoped resources
+- name: base
+  repo: https://istio-release.storage.googleapis.com/charts
+  version: 1.29.2
+  releaseName: istio-base
+  namespace: istio-system
+  includeCRDs: true
+
+# 2. Istiod: control plane. Default profile; standard-channel Gateway API is on by
+#    default in Istio 1.29, so `Gateway`/`HTTPRoute`/`GRPCRoute` (v1) are reconciled
+#    out of the box. TCPRoute/TLSRoute are EXPERIMENTAL-channel (v1alpha2) and are
+#    only reconciled when PILOT_ENABLE_ALPHA_GATEWAY_API=true — required here for
+#    the Plex TCP passthrough route (applications/plex/tcproute.yaml). Without it
+#    the TCPRoute gets no status and attaches to 0 listeners.
+- name: istiod
+  repo: https://istio-release.storage.googleapis.com/charts
+  version: 1.29.2
+  releaseName: istiod
+  namespace: istio-system
+  valuesInline:
+    pilot:
+      env:
+        PILOT_ENABLE_ALPHA_GATEWAY_API: "true"
+    # ext_authz provider for Google login via oauth2-proxy (platform/oauth2-proxy).
+    # An AuthorizationPolicy with action: CUSTOM + provider.name=oauth2-proxy (see
+    # any applications/*/authorizationpolicy.yaml) sends matching requests here
+    # first. Only apps that opt in via such a policy are affected — everything
+    # else is untouched.
+    meshConfig:
+      extensionProviders:
+      - name: oauth2-proxy
+        envoyExtAuthzHttp:
+          service: oauth2-proxy.oauth2-proxy.svc.cluster.local
+          port: 4180
+          # Host, Method and Path are always forwarded; add the session cookie
+          # (so an existing login is recognised) and X-Forwarded-Proto (so
+          # oauth2-proxy, in --reverse-proxy mode, builds an https:// URL for the
+          # post-login redirect back to the app).
+          includeRequestHeadersInCheck:
+          - cookie
+          - authorization
+          - x-forwarded-proto
+          # On allow (202), pass the identity headers to the app. These are
+          # OVERRIDDEN from the ext_authz response, so a client can't spoof them;
+          # applications/*/allowlist.yaml matches on x-auth-request-email.
+          headersToUpstreamOnAllow:
+          - x-auth-request-user
+          - x-auth-request-email
+          - x-auth-request-preferred-username
+          - x-auth-request-groups
+          # On deny (302 to Google), relay the redirect and the CSRF cookie to
+          # the browser.
+          headersToDownstreamOnDeny:
+          - content-type
+          - set-cookie
+          - location
+          - www-authenticate

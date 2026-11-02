@@ -1,12 +1,8 @@
-# httpbin at httpbin.home.bkanuka.com over HTTPS, PROTECTED by Authentik
-# forward-auth (see authorizationpolicy.yaml + ../../istio meshConfig). Moved off
-# the old path-based /httpbin to a dedicated host so the OIDC redirect + session
-# cookie work cleanly (uniform with every other app now).
-#
-# Two rules, order matters (most-specific path first):
-#   1. /outpost.goauthentik.io/*  -> Authentik embedded outpost (the sign-in,
-#      callback, and check endpoints must live on THIS host for cookies to work).
-#   2. /                          -> httpbin backend (gated by ext_authz).
+# httpbin at httpbin.home.bkanuka.com over HTTPS, PROTECTED by Google login
+# (oauth2-proxy forward-auth, see authorizationpolicy.yaml + allowlist.yaml and
+# platform/oauth2-proxy/). The sign-in flow runs on auth.home.bkanuka.com and the
+# session cookie is scoped to .home.bkanuka.com, so this route needs no auth
+# carve-out: everything goes to the app, gated by ext_authz at the gateway.
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
@@ -22,18 +18,6 @@ spec:
   hostnames:
   - httpbin.home.bkanuka.com
   rules:
-  # 1. Authentik outpost endpoints (cross-namespace; see the ReferenceGrant in
-  #    applications/authentik/httproute.yaml).
-  - matches:
-    - path:
-        type: PathPrefix
-        value: /outpost.goauthentik.io
-    backendRefs:
-    - name: authentik-server
-      namespace: authentik
-      port: 9000
-      weight: 1
-  # 2. httpbin itself.
   - matches:
     - path:
         type: PathPrefix

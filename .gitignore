@@ -6,11 +6,8 @@ __pycache__/
 # IDE
 .idea/
 
-# Helm charts pulled on demand by `kustomize build --enable-helm`
-istio/charts/
-cert-manager/charts/
-cert-manager/webhook-gandi/charts/
-sealed-secrets/charts/
+# Helm charts pulled on demand by `kustomize build --enable-helm` (platform/*)
+charts/
 
 # Kubeconfig / secrets (never commit)
 *.kubeconfig

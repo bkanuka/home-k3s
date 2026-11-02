@@ -1,0 +1,33 @@
+# AuthZ: only these Google accounts may use qbittorrent.home.bkanuka.com. Edit the list
+# below to grant/revoke access to this app alone.
+#
+# Istio evaluates CUSTOM (authorizationpolicy.yaml -> oauth2-proxy login) before
+# DENY, so by the time this runs the user is logged in and oauth2-proxy has set
+# x-auth-request-email (ext_authz OVERWRITES any client-supplied copy, so it
+# can't be spoofed). This denies the host to anyone whose email is not listed —
+# notValues also matches when the header is absent, so "no email" is denied too.
+#
+# DENY rather than ALLOW on purpose: ALLOW policies flip the whole gateway (every
+# host) to default-deny and their rules are OR'd across apps, so per-app ALLOW
+# lists on a shared gateway can't be kept independent. DENY only affects what it
+# matches. Apps without an allowlist.yaml are open to anyone who can log in.
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: qbittorrent-allowlist
+  namespace: istio-system
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: Gateway
+    name: home-gateway
+  action: DENY
+  rules:
+  - to:
+    - operation:
+        hosts:
+        - qbittorrent.home.bkanuka.com
+    when:
+    - key: request.headers[x-auth-request-email]
+      notValues:
+      - bkanuka@gmail.com

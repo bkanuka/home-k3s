@@ -3,45 +3,26 @@ kind: Kustomization
 
 namespace: argocd
 
-# Everything Argo CD needs, as one kustomize build:
-#   - the upstream install manifest (pinned version)
-#   - insecure config (patched into argocd-cmd-params-cm)
-#   - OIDC SSO via Authentik + RBAC (patched into argocd-cm / argocd-rbac-cm)
-#   - the gateway HTTPRoute exposing it at argocd.home.bkanuka.com
-#   - the ApplicationSet that deploys applications/*
-#   - the self-managing Argo CD Application (see application.yaml)
+# Everything Argo CD manages for ITSELF after bootstrap (the self-managing
+# Application in apps/ points at this directory):
+#   base/  — the Argo CD install + config
+#   apps/  — the ApplicationSets (platform/*, applications/*) + that Application
+#   httproute.yaml — exposes it at argocd.home.bkanuka.com through the shared
+#   gateway; kept out of base/ because the Gateway API CRDs come from the
+#   platform/gateway-api app (Argo CD retries this until they exist)
+#   the GitHub webhook HMAC key as a PATCH-mode SealedSecret — the controller adds
+#   only webhook.github.secret to the server-managed argocd-secret (preserving
+#   server.secretkey, admin.password, tls.*) and never owns/deletes it. Regenerate
+#   with `platform/sealed-secrets/seal.sh argocd/argocd-secret.yaml` from the
+#   git-ignored plaintext argocd-secret.yaml (template: argocd-secret.yaml.example).
 #
-# install.sh does ONE server-side apply of this to bootstrap. After that the
-# `argocd` Application (application.yaml) reconciles this same directory from
-# git, so edits here (httproute, config, version bump) sync automatically.
+# install.sh applies base/ and apps/ separately (`kubectl apply -k`) rather than
+# this file, because on a first-ever install the SealedSecret below doesn't exist
+# yet — it can only be sealed once the sealed-secrets controller (deployed by the
+# platform ApplicationSet) is running. Until it is committed, the `argocd`
+# Application shows a build error; everything else proceeds.
 resources:
-- namespace.yaml
-- https://raw.githubusercontent.com/argoproj/argo-cd/v3.4.5/manifests/install.yaml
+- base/
+- apps/
 - httproute.yaml
-- applicationset.yaml
-- application.yaml
-# GitHub webhook HMAC key as a PATCH-mode SealedSecret — the controller adds only
-# webhook.github.secret to the server-managed argocd-secret (preserving
-# server.secretkey, admin.password, tls.*) and never owns/deletes it. Replaces the
-# old host-file `kubectl patch` in install.sh. Regenerate with
-# `sealed-secrets/seal.sh argocd/argocd-secret.yaml` from the git-ignored plaintext
-# argocd-secret.yaml (template: argocd-secret.yaml.example).
 - argocd-secret-sealed.yaml
-
-patches:
-# Serve Argo CD over plain HTTP behind the gateway (insecure mode).
-# Merged into the upstream argocd-cmd-params-cm, leaving its other keys intact.
-- path: cmd-params-patch.yaml
-  target:
-    kind: ConfigMap
-    name: argocd-cmd-params-cm
-# OIDC SSO via Authentik (url + oidc.config) merged into argocd-cm.
-- path: cm-patch.yaml
-  target:
-    kind: ConfigMap
-    name: argocd-cm
-# RBAC: Authentik home-admins group -> Argo CD admin, merged into argocd-rbac-cm.
-- path: rbac-patch.yaml
-  target:
-    kind: ConfigMap
-    name: argocd-rbac-cm

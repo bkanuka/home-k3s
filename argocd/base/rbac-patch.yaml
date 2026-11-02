@@ -1,0 +1,14 @@
+# Strategic-merge patch into the upstream argocd-rbac-cm: Argo CD admin for the
+# listed Google accounts, matched on the OIDC `email` claim (Google issues no
+# groups claim for personal accounts, so RBAC is per email). Anyone else who
+# signs in with Google gets NO access (policy.default empty) — this is the Argo
+# CD allowlist, the equivalent of an app's allowlist.yaml.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm
+data:
+  policy.default: ""
+  policy.csv: |
+    g, bkanuka@gmail.com, role:admin
+  scopes: '[email]'

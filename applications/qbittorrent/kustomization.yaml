@@ -2,25 +2,27 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 # qBittorrent + PIA VPN. The Web UI is exposed at qbittorrent.home.bkanuka.com and
-# PROTECTED by Authentik forward-auth (authorizationpolicy.yaml). The PIA-forwarded
+# PROTECTED by Google login (authorizationpolicy.yaml + allowlist.yaml). The PIA-forwarded
 # BitTorrent port is handled inside the pod (synced to qBittorrent's listen port
 # over the VPN tunnel) — it never touches the gateway.
 #
 # The `pia-credentials` Secret ships as a SealedSecret (pia-credentials-sealed.yaml),
-# unsealed in-cluster by the sealed-secrets controller (../../sealed-secrets/), so
+# unsealed in-cluster by the sealed-secrets controller (../../platform/sealed-secrets/), so
 # the encrypted secret lives in git. The plaintext pia-credentials.yaml sits here
 # too but is git-ignored and NOT listed below; regenerate the sealed file with
-# `sealed-secrets/seal.sh applications/qbittorrent/pia-credentials.yaml`
+# `platform/sealed-secrets/seal.sh applications/qbittorrent/pia-credentials.yaml`
 # (template: pia-credentials.yaml.example). Until it is unsealed the pod fails.
 #
-# TIP: to avoid a double login (Authentik + qBittorrent's own), enable
+# TIP: to avoid a double login (Google + qBittorrent's own), enable
 # qBittorrent's "Bypass authentication for clients in whitelisted IP subnets" for
-# the cluster pod CIDR (Options > Web UI) — Authentik already gates access.
+# the cluster pod CIDR (Options > Web UI) — the gateway already gates access.
 resources:
 - namespace.yaml
 - pia-credentials-sealed.yaml
 - deployment.yaml
 - service.yaml
 - httproute.yaml
-# Authentik forward-auth enforcement (in istio-system, scoped to this host only).
+# Google login via oauth2-proxy (AuthN) + per-app email allowlist (AuthZ); both
+# in istio-system, scoped to this host only.
 - authorizationpolicy.yaml
+- allowlist.yaml

@@ -1,0 +1,68 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: platform
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  # One Application per platform/<name>/ directory: every cluster-level piece
+  # that is not a user-facing app — Gateway API CRDs, MetalLB, Istio, the GPU
+  # plugin, sealed-secrets, cert-manager (+ Gandi webhook + ClusterIssuers), the
+  # shared gateway. Only k3s itself and Argo CD's own install sit outside Argo CD.
+  generators:
+  - git:
+      repoURL: https://github.com/bkanuka/home-k3s.git
+      revision: main
+      directories:
+      - path: platform/*
+  template:
+    metadata:
+      name: '{{.path.basename}}'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/bkanuka/home-k3s.git
+        targetRevision: main
+        path: '{{.path.path}}'
+      destination:
+        server: https://kubernetes.default.svc
+      syncPolicy:
+        automated:
+          prune: true      # delete resources removed from git
+          selfHeal: true   # revert manual drift back to git state
+        syncOptions:
+        - CreateNamespace=true
+        # Helm-inflated charts carry CRDs too large for client-side apply.
+        - ServerSideApply=true
+        # These apps create CRs for CRDs that arrive in the same sync (cert-manager
+        # Issuer/Certificate, SealedSecret) or from a sibling app (Gateway needs
+        # gateway-api): don't fail the dry-run on a kind the API server doesn't
+        # know yet.
+        - SkipDryRunOnMissingResource=true
+        # Honour ignoreDifferences below during sync too, so selfHeal doesn't
+        # revert fields other controllers own.
+        - RespectIgnoreDifferences=true
+        # Cross-app ordering is by retry, not by waves: e.g. cert-manager's
+        # SealedSecret can't apply until the sealed-secrets app has installed the
+        # CRD, the Gateway needs the CRDs and Istio's GatewayClass. Keep retrying.
+        retry:
+          limit: -1
+          backoff:
+            duration: 10s
+            factor: 2
+            maxDuration: 3m
+      # Webhook configs whose caBundle (and, for istiod, failurePolicy) is
+      # rewritten at runtime by the component itself — istiod, MetalLB's
+      # controller, cert-manager's cainjector. Without this Argo CD would see
+      # permanent drift and selfHeal would fight the controller.
+      ignoreDifferences:
+      - group: admissionregistration.k8s.io
+        kind: ValidatingWebhookConfiguration
+        jqPathExpressions:
+        - .webhooks[].clientConfig.caBundle
+        - .webhooks[].failurePolicy
+      - group: admissionregistration.k8s.io
+        kind: MutatingWebhookConfiguration
+        jqPathExpressions:
+        - .webhooks[].clientConfig.caBundle

@@ -1,0 +1,38 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Sealed Secrets (bitnami-labs) — platform app deployed by Argo CD
+# (argocd/apps/applicationset-platform.yaml). The controller decrypts committed
+# `SealedSecret` CRs into real `Secret`s in-cluster, so encrypted secrets can live
+# in git and be reconciled like everything else. Every secret in the repo —
+# gandi-credentials, pia-credentials, the Argo CD webhook key (+ Google OIDC client) —
+# is a SealedSecret that this controller unseals; their apps simply retry until
+# this one has installed the CRD.
+#
+# Helm chart inflated by kustomize inside Argo CD's repo-server (same as
+# ../cert-manager/; needs `kustomize.buildOptions: --enable-helm`, set in
+# argocd/base/cm-patch.yaml).
+#
+# IMPORTANT — the sealing key. The controller generates its private key on first
+# boot; a fresh key CANNOT decrypt SealedSecrets sealed against the old public
+# cert. install.sh therefore backs the key up to
+# /mnt/main/config/sealed-secrets/master.key and, on a rebuild, restores it
+# BEFORE Argo CD deploys this app (the controller adopts an existing active key)
+# — that one host file is the only state that must survive a cluster wipe.
+#
+# `fullnameOverride: sealed-secrets-controller` fixes the controller/Deployment
+# name so kubeseal's `--controller-name` default matches and install.sh can find
+# it deterministically. The public cert is committed at pub-cert.pem so sealing
+# works offline with `kubeseal --cert` (see seal.sh).
+resources:
+- namespace.yaml
+
+helmCharts:
+- name: sealed-secrets
+  repo: https://bitnami.github.io/sealed-secrets
+  version: 2.19.1   # controller app v0.38.4
+  releaseName: sealed-secrets
+  namespace: sealed-secrets
+  includeCRDs: true
+  valuesInline:
+    fullnameOverride: sealed-secrets-controller

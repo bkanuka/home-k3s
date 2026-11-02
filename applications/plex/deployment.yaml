@@ -24,7 +24,7 @@ spec:
       # URLs (https://plex.home.bkanuka.com:443), not by this hostname.
       hostname: plex
       # Run under the NVIDIA container runtime so the injected GPU is usable for
-      # hardware transcoding. Requires the nvidia-device-plugin (core platform).
+      # hardware transcoding. Requires the nvidia-device-plugin (platform/nvidia-device-plugin/).
       runtimeClassName: nvidia
       containers:
       - name: plex

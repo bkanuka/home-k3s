@@ -1,0 +1,70 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# oauth2-proxy — "login with Google" for the whole gateway, as the Istio ext_authz
+# backend. Platform app deployed by Argo CD. It does AUTHENTICATION only (any
+# Google account can sign in); WHO may use a given app is a per-app Istio DENY
+# policy on the x-auth-request-email header it emits (see any
+# applications/*/allowlist.yaml). Argo CD, being OIDC-native, talks to Google
+# directly instead (argocd/base/cm-patch.yaml).
+#
+# How a protected request flows (AuthorizationPolicy action: CUSTOM, provider
+# `oauth2-proxy` in platform/istio meshConfig):
+#   1. gateway asks oauth2-proxy (ext_authz check carrying Host, Path, Cookie)
+#   2. no session -> oauth2-proxy answers 302 to Google; the gateway relays the
+#      status + Location + the CSRF Set-Cookie to the browser
+#   3. Google -> https://auth.home.bkanuka.com/oauth2/callback (the ONE redirect
+#      URI; this host routes straight to oauth2-proxy, no ext_authz) -> session
+#      cookie for .home.bkanuka.com -> back to the original URL
+#   4. session present -> oauth2-proxy answers 202 (upstream static://202) with
+#      X-Auth-Request-Email etc., which the gateway forwards to the app
+# Because the cookie is domain-wide and the callback lives on auth.*, protected
+# apps need no route carve-outs — just the AuthorizationPolicy.
+#
+# Google Cloud Console: a "Web application" OAuth client with Authorized redirect
+# URI https://auth.home.bkanuka.com/oauth2/callback (and, for Argo CD,
+# https://argocd.home.bkanuka.com/auth/callback). Its id/secret + the cookie
+# secret go in oauth2-proxy-secret.yaml (git-ignored; see the .example) and are
+# sealed into oauth2-proxy-secret-sealed.yaml.
+namespace: oauth2-proxy
+
+resources:
+- namespace.yaml
+- oauth2-proxy-secret-sealed.yaml
+- deployment.yaml
+- service.yaml
+- httproute.yaml
+
+configMapGenerator:
+# Non-secret settings as OAUTH2_PROXY_* env vars (flag name upper-cased, dashes
+# to underscores; list-typed flags use the plural name).
+- name: oauth2-proxy-config
+  literals:
+  - OAUTH2_PROXY_PROVIDER=google
+  - OAUTH2_PROXY_HTTP_ADDRESS=0.0.0.0:4180
+  # AuthN only: any Google account may sign in; apps restrict by email in Istio.
+  - OAUTH2_PROXY_EMAIL_DOMAINS=*
+  # The single callback, on the dedicated auth host (httproute.yaml).
+  - OAUTH2_PROXY_REDIRECT_URL=https://auth.home.bkanuka.com/oauth2/callback
+  # One session cookie for every *.home.bkanuka.com app; after login, redirects
+  # back to any host under that domain are allowed.
+  - OAUTH2_PROXY_COOKIE_DOMAINS=.home.bkanuka.com
+  - OAUTH2_PROXY_WHITELIST_DOMAINS=.home.bkanuka.com
+  - OAUTH2_PROXY_COOKIE_SECURE=true
+  - OAUTH2_PROXY_COOKIE_SAMESITE=lax
+  # Re-validate the Google account hourly (recommended for Google); session
+  # lasts a week.
+  - OAUTH2_PROXY_COOKIE_REFRESH=1h
+  - OAUTH2_PROXY_COOKIE_EXPIRE=168h
+  # ext_authz mode: an authenticated check just needs a 2xx — no real upstream.
+  - OAUTH2_PROXY_UPSTREAMS=static://202
+  # Behind the gateway: trust X-Forwarded-Proto (forwarded in the check) and the
+  # original Host/Path (always forwarded by Istio) to build the post-login
+  # redirect back to the app the user asked for.
+  - OAUTH2_PROXY_REVERSE_PROXY=true
+  # Emit X-Auth-Request-{User,Email,Groups,Preferred-Username} on allow; Istio
+  # passes them to the app and the per-app allowlist matches on Email.
+  - OAUTH2_PROXY_SET_XAUTHREQUEST=true
+  # No "Sign in with Google" interstitial — go straight to Google.
+  - OAUTH2_PROXY_SKIP_PROVIDER_BUTTON=true
+  - OAUTH2_PROXY_SILENCE_PING_LOGGING=true

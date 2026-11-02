@@ -1,0 +1,55 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# cert-manager — platform app deployed by Argo CD (argocd/apps/applicationset-
+# platform.yaml). Issues Let's Encrypt TLS certs for the shared gateway's HTTPS
+# listeners.
+#
+# One Argo CD app, ordered by sync waves so each layer is healthy before the next
+# is applied (Argo CD waits between waves):
+#   wave 0  cert-manager chart (CRDs, controller, webhook, cainjector) + the
+#           gandi-credentials SealedSecret
+#   wave 1  webhook-gandi/ — its chart creates cert-manager Issuer/Certificate CRs
+#           for its own serving cert, so cert-manager's CRDs must be established
+#   wave 2  clusterissuer.yaml — validated by cert-manager's webhook, which must be
+#           serving; references the Gandi solver
+# Helm charts are inflated by kustomize inside Argo CD's repo-server
+# (`kustomize.buildOptions: --enable-helm` in argocd/base/cm-patch.yaml).
+resources:
+- namespace.yaml
+# gandi-credentials (key `pat`) as a SealedSecret — unsealed by the sealed-secrets
+# controller (../sealed-secrets/, a sibling platform app; this one just retries
+# until the SealedSecret CRD exists). Regenerate with
+# `platform/sealed-secrets/seal.sh platform/cert-manager/gandi-credentials.yaml`
+# from the git-ignored plaintext gandi-credentials.yaml (template:
+# gandi-credentials.yaml.example). Consumed by the Gandi DNS-01 webhook and both
+# ClusterIssuers (clusterissuer.yaml).
+- gandi-credentials-sealed.yaml
+- webhook-gandi/
+- clusterissuer.yaml
+
+helmCharts:
+- name: cert-manager
+  repo: https://charts.jetstack.io
+  version: v1.21.0
+  releaseName: cert-manager
+  namespace: cert-manager
+  includeCRDs: true
+  valuesInline:
+    crds:
+      enabled: true
+    # Enable the Gateway API integration so cert-manager reconciles certs for
+    # Gateway listeners annotated with cert-manager.io/cluster-issuer (the
+    # gateway-shim controller). On v1.21.0 this needs BOTH controller switches —
+    # the feature gate alone is necessary but NOT sufficient:
+    #   1. ExperimentalGatewayAPISupport feature gate (BETA, default=true; kept
+    #      explicit for clarity/pinning).
+    #   2. the --enable-gateway-api flag, which defaults OFF. Without it,
+    #      gateway-shim logs "skipping disabled controller" and no Certificate is
+    #      ever created for the annotated Gateway.
+    # The config-file forms the chart's values.yaml documents both FAIL here:
+    # `config.gatewayAPI.enable` strict-decode crash-loops (unknown field), and
+    # `config.featureGates` is silently ignored. Set them as controller flags.
+    featureGates: "ExperimentalGatewayAPISupport=true"
+    extraArgs:
+    - --enable-gateway-api

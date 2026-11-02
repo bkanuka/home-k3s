@@ -1,8 +1,8 @@
-# qBittorrent Web UI at qbittorrent.home.bkanuka.com over HTTPS, PROTECTED by
-# Authentik forward-auth (see authorizationpolicy.yaml + ../../istio meshConfig),
-# same pattern as httpbin. Rule 1 carves the outpost sign-in paths to Authentik
-# (cross-namespace via the ReferenceGrant in applications/authentik/httproute.yaml);
-# rule 2 sends everything else to qBittorrent (:8888).
+# qBittorrent Web UI at qbittorrent.home.bkanuka.com over HTTPS, PROTECTED by Google login
+# (oauth2-proxy forward-auth, see authorizationpolicy.yaml + allowlist.yaml and
+# platform/oauth2-proxy/). The sign-in flow runs on auth.home.bkanuka.com and the
+# session cookie is scoped to .home.bkanuka.com, so this route needs no auth
+# carve-out: everything goes to the app, gated by ext_authz at the gateway.
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
@@ -18,15 +18,6 @@ spec:
   hostnames:
   - qbittorrent.home.bkanuka.com
   rules:
-  - matches:
-    - path:
-        type: PathPrefix
-        value: /outpost.goauthentik.io
-    backendRefs:
-    - name: authentik-server
-      namespace: authentik
-      port: 9000
-      weight: 1
   - matches:
     - path:
         type: PathPrefix

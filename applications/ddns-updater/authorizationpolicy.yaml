@@ -1,7 +1,12 @@
-# Enforce Authentik forward-auth on the ddns-updater UI (same pattern as
-# httpbin). Lives in istio-system (the gateway's namespace) but owned by the
-# ddns-updater Argo app. Scoped to the ddns-updater host; the outpost's own
-# /outpost.goauthentik.io/* endpoints are excluded so the sign-in flow can run.
+# AuthN: require Google login on ddns-updater.home.bkanuka.com via oauth2-proxy forward-auth.
+# Lives in istio-system (the gateway's namespace) but is owned by this app so
+# auth config stays co-located with the service it protects.
+#
+# action: CUSTOM sends matching requests to the `oauth2-proxy` extensionProvider
+# (platform/istio meshConfig -> oauth2-proxy's ext_authz endpoint). Unauthenticated
+# -> 302 to Google; authenticated -> allowed, with x-auth-request-email set.
+# Scoped to this host so every OTHER service on the shared gateway stays open.
+# WHO may use the app is a separate, per-app DENY policy: see allowlist.yaml.
 apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
 metadata:
@@ -14,11 +19,9 @@ spec:
     name: home-gateway
   action: CUSTOM
   provider:
-    name: authentik
+    name: oauth2-proxy
   rules:
   - to:
     - operation:
         hosts:
         - ddns-updater.home.bkanuka.com
-        notPaths:
-        - /outpost.goauthentik.io/*

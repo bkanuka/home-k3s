@@ -16,7 +16,7 @@ kind: Kustomization
 #   3. Google -> https://auth.home.bkanuka.com/oauth2/callback (the ONE redirect
 #      URI; this host routes straight to oauth2-proxy, no ext_authz) -> session
 #      cookie for .home.bkanuka.com -> back to the original URL
-#   4. session present -> oauth2-proxy answers 202 (upstream static://202) with
+#   4. session present -> oauth2-proxy answers 200 (upstream static://200) with
 #      X-Auth-Request-Email etc., which the gateway forwards to the app
 # Because the cookie is domain-wide and the callback lives on auth.*, protected
 # apps need no route carve-outs — just the AuthorizationPolicy.
@@ -56,8 +56,12 @@ configMapGenerator:
   # lasts a week.
   - OAUTH2_PROXY_COOKIE_REFRESH=1h
   - OAUTH2_PROXY_COOKIE_EXPIRE=168h
-  # ext_authz mode: an authenticated check just needs a 2xx — no real upstream.
-  - OAUTH2_PROXY_UPSTREAMS=static://202
+  # ext_authz mode: no real upstream, an authenticated check just returns this
+  # status. It MUST be 200: Envoy's HTTP ext_authz treats only 200 as "allowed"
+  # (unlike nginx auth_request, which takes any 2xx — the usual static://202
+  # recipe); anything else is a deny and the body ("Authenticated") is what the
+  # browser gets instead of the app.
+  - OAUTH2_PROXY_UPSTREAMS=static://200
   # Behind the gateway: trust X-Forwarded-Proto (forwarded in the check) and the
   # original Host/Path (always forwarded by Istio) to build the post-login
   # redirect back to the app the user asked for.

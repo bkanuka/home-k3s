@@ -35,6 +35,13 @@ spec:
         - CreateNamespace=true
         # Helm-inflated charts carry CRDs too large for client-side apply.
         - ServerSideApply=true
+        # With SSA there is no last-applied annotation, so Argo CD's default
+        # (client-side) diff can't tell API-server defaulting from drift: every
+        # Gateway API object came up permanently OutOfSync on fields the CRDs
+        # default (backendRefs group/kind, certificateRefs group/kind, ...).
+        # ServerSideDiff dry-run-applies the manifest and compares the result —
+        # defaults included — so only real differences count.
+        - ServerSideDiff=true
         # These apps create CRs for CRDs that arrive in the same sync (cert-manager
         # Issuer/Certificate, SealedSecret) or from a sibling app (Gateway needs
         # gateway-api): don't fail the dry-run on a kind the API server doesn't

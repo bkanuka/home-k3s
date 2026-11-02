@@ -253,7 +253,9 @@ directories in this repo. Two `ApplicationSet`s
 ([`argocd/apps/`](argocd/apps/)) turn **each subfolder into an Argo CD
 `Application`** synced with `prune` + `selfHeal` — so the cluster always matches
 git, and manual `kubectl` drift gets reverted. The `platform` set additionally
-uses server-side apply, `SkipDryRunOnMissingResource` and unlimited retries,
+uses server-side apply (+ `ServerSideDiff`, so API-server defaulting on Gateway
+API objects isn't reported as drift), `SkipDryRunOnMissingResource` and
+unlimited retries,
 because platform apps create CRs for CRDs that sibling apps provide, and
 `ignoreDifferences` for the webhook `caBundle`s that istiod, MetalLB and
 cert-manager rewrite at runtime.

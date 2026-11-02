@@ -50,14 +50,21 @@ helmCharts:
         envoyExtAuthzHttp:
           service: oauth2-proxy.oauth2-proxy.svc.cluster.local
           port: 4180
-          # Host, Method and Path are always forwarded; add the session cookie
-          # (so an existing login is recognised) and X-Forwarded-Proto (so
-          # oauth2-proxy, in --reverse-proxy mode, builds an https:// URL for the
-          # post-login redirect back to the app).
+          # Host, Method and Path are always forwarded; add the session cookie so
+          # an existing login is recognised.
           includeRequestHeadersInCheck:
           - cookie
           - authorization
-          - x-forwarded-proto
+          # oauth2-proxy (--reverse-proxy) only builds an ABSOLUTE post-login
+          # redirect ("https://<app>/<path>") when the request carries
+          # X-Forwarded-Host; with just Host it falls back to the bare path, and
+          # the callback on auth.home.bkanuka.com then lands on "/" there
+          # ("Authenticated") instead of the app. The gateway doesn't set
+          # X-Forwarded-Host, so synthesise it (and Proto) for the check from
+          # the original request with Envoy command operators.
+          includeAdditionalHeadersInCheck:
+            X-Forwarded-Host: "%REQ(:authority)%"
+            X-Forwarded-Proto: "https"
           # On allow (202), pass the identity headers to the app. These are
           # OVERRIDDEN from the ext_authz response, so a client can't spoof them;
           # applications/*/allowlist.yaml matches on x-auth-request-email.

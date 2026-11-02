@@ -55,16 +55,17 @@ helmCharts:
           includeRequestHeadersInCheck:
           - cookie
           - authorization
-          # oauth2-proxy (--reverse-proxy) only builds an ABSOLUTE post-login
-          # redirect ("https://<app>/<path>") when the request carries
-          # X-Forwarded-Host; with just Host it falls back to the bare path, and
-          # the callback on auth.home.bkanuka.com then lands on "/" there
-          # ("Authenticated") instead of the app. The gateway doesn't set
-          # X-Forwarded-Host, so synthesise it (and Proto) for the check from
-          # the original request with Envoy command operators.
+          # Where to send the user AFTER Google login. Left to itself oauth2-proxy
+          # records only the bare path of the check request ("/foo"), so the
+          # callback on auth.home.bkanuka.com would land on "/" there (its static
+          # "Authenticated" page) instead of the app — and it ignores
+          # X-Forwarded-Host/Proto/Uri for this (verified against v7.15.5). The
+          # one header it honours is X-Auth-Request-Redirect, so synthesise the
+          # absolute app URL from the original request with Envoy command
+          # operators (:path includes the query string). oauth2-proxy's
+          # whitelist-domains=.home.bkanuka.com validates it.
           includeAdditionalHeadersInCheck:
-            X-Forwarded-Host: "%REQ(:authority)%"
-            X-Forwarded-Proto: "https"
+            X-Auth-Request-Redirect: "https://%REQ(:authority)%%REQ(:path)%"
           # On allow (202), pass the identity headers to the app. These are
           # OVERRIDDEN from the ext_authz response, so a client can't spoof them;
           # applications/*/allowlist.yaml matches on x-auth-request-email.

@@ -45,7 +45,13 @@ spec:
   hostnames:
   - auth.home.bkanuka.com
   rules:
-  - filters:
+  # explicit: the CRD defaults a catch-all match when none is given; spelled out
+  # so Argo CD (server-side apply) doesn't report the defaulting as drift
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /
+    filters:
     - type: RequestRedirect
       requestRedirect:
         scheme: https

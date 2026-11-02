@@ -10,6 +10,7 @@ __pycache__/
 istio/charts/
 cert-manager/charts/
 cert-manager/webhook-gandi/charts/
+sealed-secrets/charts/
 
 # Kubeconfig / secrets (never commit)
 *.kubeconfig
@@ -20,10 +21,18 @@ k3s.yaml
 applications/ddns-updater/data/
 applications/ddns-updater/config.json
 
-# Authentik secret env (only the .example belongs in git; real file lives on the
-# server at /mnt/main/config/authentik/authentik.env)
-applications/authentik/authentik.env
+# Plaintext Secret manifests sit next to their <name>-sealed.yaml output in each
+# app dir (templates: <name>.yaml.example) and must never be committed. They are
+# ignored by file name — anything with "secret" or "credentials" in it that is
+# not the -sealed output. sealed-secrets/seal.sh refuses to seal a file that is
+# not ignored, and .githooks/pre-commit is the backstop.
+*secret*.yaml
+*credentials*.yaml
+!*-sealed.yaml
 
-# PIA credentials for qbittorrent (only the .example belongs in git; real file
-# lives on the server at /mnt/main/config/pia/pia.env)
-applications/qbittorrent/pia.env
+# Sealed Secrets sealing key backup — NEVER commit (this is the PRIVATE key that
+# decrypts every SealedSecret). It lives on the server at
+# /mnt/main/config/sealed-secrets/master.key; keep an off-box copy. Note:
+# sealed-secrets/pub-cert.pem is the PUBLIC cert and IS committed (safe).
+master.key
+*.master.key

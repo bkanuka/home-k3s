@@ -11,6 +11,14 @@ kind: Kustomization
 # (with a retry), mirroring how metallb/config.yaml is applied.
 resources:
 - namespace.yaml
+# gandi-credentials (key `pat`) as a SealedSecret — unsealed by the sealed-secrets
+# controller (installed first, see ../sealed-secrets/). Replaces the old
+# `kubectl create secret` in install.sh so the token lives in git, encrypted.
+# Regenerate with `sealed-secrets/seal.sh cert-manager/gandi-credentials.yaml` from
+# the git-ignored plaintext gandi-credentials.yaml (template:
+# gandi-credentials.yaml.example). Consumed by the Gandi DNS-01 webhook and both
+# ClusterIssuers (clusterissuer.yaml).
+- gandi-credentials-sealed.yaml
 
 helmCharts:
 - name: cert-manager

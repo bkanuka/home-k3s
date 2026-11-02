@@ -20,6 +20,13 @@ resources:
 - httproute.yaml
 - applicationset.yaml
 - application.yaml
+# GitHub webhook HMAC key as a PATCH-mode SealedSecret — the controller adds only
+# webhook.github.secret to the server-managed argocd-secret (preserving
+# server.secretkey, admin.password, tls.*) and never owns/deletes it. Replaces the
+# old host-file `kubectl patch` in install.sh. Regenerate with
+# `sealed-secrets/seal.sh argocd/argocd-secret.yaml` from the git-ignored plaintext
+# argocd-secret.yaml (template: argocd-secret.yaml.example).
+- argocd-secret-sealed.yaml
 
 patches:
 # Serve Argo CD over plain HTTP behind the gateway (insecure mode).

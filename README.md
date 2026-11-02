@@ -63,7 +63,7 @@ There is a deliberate split in how things are deployed:
 
 | Layer | What | How it's deployed |
 | ----- | ---- | ----------------- |
-| **Core platform** | k3s, Gateway API CRDs, MetalLB, Istio (+ ext_authz config), the shared Gateway, cert-manager | Bootstrapped **imperatively by `install.sh`**. Not managed by Argo CD. |
+| **Core platform** | k3s, Gateway API CRDs, MetalLB, Istio (+ ext_authz config), the shared Gateway, cert-manager, Sealed Secrets | Bootstrapped **imperatively by `install.sh`**. Not managed by Argo CD. |
 | **Argo CD** | Argo CD itself + its route/config | **Bootstrapped once** by `install.sh`, then **self-managed** via git (`argocd/`). |
 | **Applications** | Everything under `applications/` (httpbin, plex, ddns-updater, authentik, …) | Managed by **Argo CD from git**. |
 
@@ -80,16 +80,75 @@ touches MetalLB, Istio, or the Gateway — so a bad app sync can't take down the
 networking core. Argo CD is bootstrapped once (`install.sh`) and thereafter
 reconciles itself from git via a self-managing `Application`.
 
+## Secrets (Sealed Secrets)
+
+Every secret in the cluster is committed to git **encrypted** as a `SealedSecret`
+and decrypted in-cluster by the
+[Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets) controller —
+nothing is created out-of-band with `kubectl create secret`. The plaintext
+`kind: Secret` manifest lives **in the app's own directory**, git-ignored and not
+listed in its kustomization; [`sealed-secrets/seal.sh`](sealed-secrets/seal.sh)
+turns it into the committed `<name>-sealed.yaml` beside it:
+
+```
+applications/authentik/
+├── authentik-secrets.yaml.example   # template (committed)
+├── authentik-secrets.yaml           # plaintext (git-ignored, NOT in kustomization)
+└── authentik-secrets-sealed.yaml    # SealedSecret (committed, in kustomization)
+```
+
+| Plaintext (git-ignored) | → SealedSecret in git | Applied by |
+| ----------------------- | --------------------- | ---------- |
+| `cert-manager/gandi-credentials.yaml` | `cert-manager/gandi-credentials-sealed.yaml` | `install.sh` |
+| `applications/authentik/authentik-secrets.yaml` | `applications/authentik/authentik-secrets-sealed.yaml` | Argo CD |
+| `applications/qbittorrent/pia-credentials.yaml` | `applications/qbittorrent/pia-credentials-sealed.yaml` | Argo CD |
+| `argocd/argocd-secret.yaml` (patch) | `argocd/argocd-secret-sealed.yaml` | `install.sh` |
+
+The argocd one carries the `sealedsecrets.bitnami.com/patch` annotation on the
+plaintext Secret (kubeseal copies it through), so only `webhook.github.secret` is
+added to the server-managed `argocd-secret`, leaving
+`server.secretkey`/`admin.password`/`tls.*` intact.
+
+```bash
+# on the k3s host, once the controller is up:
+cp applications/authentik/authentik-secrets.yaml.example applications/authentik/authentik-secrets.yaml
+$EDITOR applications/authentik/authentik-secrets.yaml
+./sealed-secrets/seal.sh --fetch applications/authentik/authentik-secrets.yaml   # --fetch: first run / after key rotation
+# then commit authentik-secrets-sealed.yaml + sealed-secrets/pub-cert.pem
+```
+
+Plaintext files are git-ignored by name (`*secret*.yaml`, `*credentials*.yaml`,
+minus `*-sealed.yaml`); `seal.sh` refuses to seal a file git would track.
+
+> **Guardrail:** a pre-commit hook ([`.githooks/pre-commit`](.githooks/pre-commit))
+> refuses any commit whose staged YAML/JSON contains a `kind: Secret` document
+> (parsed with [`yq`](https://github.com/mikefarah/yq)) or whose staged content
+> has a `PRIVATE KEY` block. Needs `yq` on your machine. Enable it once per clone:
+>
+> ```bash
+> git config core.hooksPath .githooks
+> ```
+
+> **⚠️ The sealing key is the one thing you must not lose.** The controller's
+> **private** key decrypts every SealedSecret. `install.sh` backs it up to
+> `/mnt/main/config/sealed-secrets/master.key` and restores it on a rebuild — keep
+> an **off-box copy** too. Lose it and a rebuilt cluster can't decrypt anything in
+> git (you'd re-seal every secret from plaintext). The **public** cert
+> (`sealed-secrets/pub-cert.pem`) is safe to commit. Full details:
+> [`sealed-secrets/README.md`](sealed-secrets/README.md).
+
 ## Repository layout
 
 | Path            | Purpose                                                            |
 | --------------- | ----------------------------------------------------------------- |
 | `install.sh`    | End-to-end installer — bootstraps the core platform + Argo CD.     |
+| `.githooks/`    | `pre-commit` hook that blocks plaintext `kind: Secret` manifests / private keys (`git config core.hooksPath .githooks`). |
 | `kustomization.yaml` | Root kustomization for the **core platform only**.            |
 | `metallb/`      | MetalLB manifests + `config.yaml` (IP pool & L2 advertisement).    |
 | `istio/`        | Istio (ingress-only) install via Helm charts inflated by kustomize. |
 | `gateway/`      | The single **shared Gateway** (`home-gateway`) — HTTP :80 + HTTPS :443 (wildcard + apex) + TCP :32400 (Plex) listeners. |
 | `nvidia-device-plugin/` | NVIDIA k8s device plugin — advertises `nvidia.com/gpu` for GPU workloads (Plex). |
+| `sealed-secrets/` | Sealed Secrets controller (Helm) — unseals committed `SealedSecret`s into real `Secret`s. `seal.sh <secret.yaml>` seals a git-ignored plaintext Secret into `<name>-sealed.yaml` beside it; see `sealed-secrets/README.md`. |
 | `cert-manager/` | cert-manager (Helm) + Let's Encrypt `ClusterIssuer`s for gateway TLS. Gateway API integration needs the `--feature-gates=ExperimentalGatewayAPISupport=true` **and** `--enable-gateway-api` controller flags (see `cert-manager/kustomization.yaml`). |
 | `cert-manager/webhook-gandi/` | SINTEF Gandi DNS-01 webhook — enables wildcard certs. |
 | `argocd/`       | Self-managed Argo CD: kustomize install + config + HTTPRoute (`argocd.home.bkanuka.com`) + `ApplicationSet` + the self-managing `Application`. |
@@ -112,6 +171,7 @@ Pinned in `install.sh`:
 | cert-manager  | v1.21.0   |
 | cert-manager-webhook-gandi | v0.6.0 |
 | NVIDIA device plugin | v0.19.3 |
+| Sealed Secrets | controller v0.38.4 (chart 2.19.1, pinned in `sealed-secrets/kustomization.yaml`); `kubeseal` v0.38.4 and `yq` v4.53.3 (used by `seal.sh` + the pre-commit hook) pinned in `install.sh` |
 | Argo CD       | v3.4.5 *(pinned in `argocd/kustomization.yaml`, since Argo CD is GitOps-managed)* |
 | Authentik     | 2026.5.4 *(pinned in `applications/authentik/{server,worker}.yaml`)* |
 
@@ -148,8 +208,10 @@ The script is idempotent and, in order:
 3. Applies the Gateway API CRDs.
 4. Installs and configures MetalLB.
 5. Installs Istio (ingress-only — control plane + Gateway API).
-6. Creates the single shared `home-gateway`.
-7. Bootstraps Argo CD from `argocd/` (one `kustomize build | kubectl apply`),
+6. Installs the Sealed Secrets controller (restoring its sealing key from the host
+   backup, or backing up the freshly-generated one), then cert-manager.
+7. Creates the single shared `home-gateway`.
+8. Bootstraps Argo CD from `argocd/` (one `kustomize build | kubectl apply`),
    which also installs its self-managing `Application`.
 
 After that, **Argo CD** deploys everything under `applications/` (including the
@@ -309,16 +371,19 @@ template).
 > #    Must be readable/writable by UID 1000.
 > /mnt/main/config/ddns-updater/config.json
 >
-> # 2. cert-manager Gandi webhook — a file containing ONLY the raw PAT:
-> sudo mkdir -p /mnt/main/config/cert-manager
-> printf '%s' '<YOUR_GANDI_PAT>' | sudo tee /mnt/main/config/cert-manager/gandi-pat >/dev/null
+> # 2. cert-manager Gandi webhook — a plaintext Secret manifest (key `pat`),
+> #    git-ignored, in the repo checkout: copy the .example and fill in the PAT.
+> cert-manager/gandi-credentials.yaml      # from cert-manager/gandi-credentials.yaml.example
 > ```
 >
-> `install.sh` turns file #2 into the `gandi-credentials` Secret at bootstrap
-> (`kubectl create secret generic gandi-credentials -n cert-manager --from-file=pat=...`,
-> applied idempotently); it aborts if the file is missing. Until both files
-> exist, ddns-updater can't read its config and cert issuance fails at the DNS-01
-> step.
+> File #2 is **sealed into git** as
+> [`cert-manager/gandi-credentials-sealed.yaml`](cert-manager/gandi-credentials-sealed.yaml)
+> by `sealed-secrets/seal.sh cert-manager/gandi-credentials.yaml`, then unsealed in-cluster
+> by the Sealed Secrets controller — `install.sh` no longer creates it. See
+> [Secrets (Sealed Secrets)](#secrets-sealed-secrets). Until the PAT is sealed and
+> committed, cert issuance fails at the DNS-01 step; until ddns-updater's
+> `config.json` exists it can't update DNS. (File #1 is a hostPath mount, **not** a
+> k8s Secret, so it is not sealed.)
 
 ## Authentication (Authentik + Google SSO)
 
@@ -354,17 +419,20 @@ the blueprint reads them via `!Env` from the `authentik-secrets` Secret.
 > Cloud Console with the Authorized redirect URI **exactly**
 > `https://authentik.home.bkanuka.com/source/oauth/callback/google/`.
 
-> **⚠️ Authentik secret — one file on the server (never in git).** `install.sh`
-> seeds the `authentik-secrets` Secret from a host env file
-> ([`applications/authentik/secret.env.example`](applications/authentik/secret.env.example)
-> documents it):
+> **⚠️ Authentik secret.** The `authentik-secrets` Secret ships **sealed in git**
+> ([`applications/authentik/authentik-secrets-sealed.yaml`](applications/authentik/authentik-secrets-sealed.yaml))
+> and is unsealed in-cluster by the Sealed Secrets controller. Regenerate it from
+> the git-ignored plaintext
+> `applications/authentik/authentik-secrets.yaml` (session key, PG password,
+> bootstrap admin pw, Google id/secret —
+> [`authentik-secrets.yaml.example`](applications/authentik/authentik-secrets.yaml.example)
+> documents the keys):
 >
 > ```bash
-> /mnt/main/config/authentik/authentik.env   # session key, PG password,
->                                             # bootstrap admin pw, Google id/secret
+> ./sealed-secrets/seal.sh applications/authentik/authentik-secrets.yaml
 > ```
 >
-> Until it exists, the Authentik pods stay pending. Admin UI:
+> Until it is sealed/committed, the Authentik pods stay pending. Admin UI:
 > `authentik.home.bkanuka.com`, user `akadmin`, password = `AUTHENTIK_BOOTSTRAP_PASSWORD`.
 
 **Currently protected via forward-auth:** `httpbin`, `ddns-updater`. To protect

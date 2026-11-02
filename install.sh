@@ -5,6 +5,8 @@ KUSTOMIZE_VERSION="5.4.3"
 ISTIO_VERSION="1.29.2"
 GATEWAY_API_VERSION="v1.4.0"
 METALLB_VERSION="v0.16.0"
+KUBESEAL_VERSION="0.38.4"   # Sealed Secrets CLI; the controller chart is pinned in sealed-secrets/
+YQ_VERSION="4.53.3"         # mikefarah/yq — YAML parser used by sealed-secrets/seal.sh + .githooks/pre-commit
 # Argo CD version is pinned in argocd/kustomization.yaml (it is GitOps-managed).
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -50,6 +52,28 @@ else
     echo "==> helm already installed ($(helm version --short))"
 fi
 
+# ── kubeseal (Sealed Secrets CLI, used by sealed-secrets/seal.sh) ─────────────
+if ! command -v kubeseal >/dev/null 2>&1; then
+    echo "==> Installing kubeseal v${KUBESEAL_VERSION}..."
+    curl -sL "https://github.com/bitnami-labs/sealed-secrets/releases/download/v${KUBESEAL_VERSION}/kubeseal-${KUBESEAL_VERSION}-linux-amd64.tar.gz" \
+        | tar xz -C /tmp kubeseal
+    sudo mv /tmp/kubeseal /usr/local/bin/kubeseal
+else
+    echo "==> kubeseal already installed ($(kubeseal --version 2>/dev/null))"
+fi
+
+# ── yq (YAML parser, used by sealed-secrets/seal.sh to read the plaintext Secrets)
+# Single static binary. NOTE: this is mikefarah/yq (Go); the unrelated Python
+# "yq" package has a different CLI and will not work.
+if ! command -v yq >/dev/null 2>&1; then
+    echo "==> Installing yq v${YQ_VERSION}..."
+    sudo curl -sL "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_amd64" \
+        -o /usr/local/bin/yq
+    sudo chmod +x /usr/local/bin/yq
+else
+    echo "==> yq already installed ($(yq --version 2>/dev/null))"
+fi
+
 # ── Gateway API CRDs ──────────────────────────────────────────────────────────
 # --server-side avoids the 256KB last-applied-configuration annotation limit
 # that client-side apply hits on the large httproutes CRD.
@@ -85,6 +109,74 @@ echo "    Waiting for istiod..."
 kubectl wait --for=condition=Available deployment/istiod \
     -n istio-system --timeout=300s
 
+# ── Sealed Secrets ─────────────────────────────────────────────────────────────
+# Controller that unseals committed SealedSecret CRs into real Secrets, so every
+# secret in this repo (gandi-credentials, authentik-secrets, pia-credentials, the
+# Argo CD webhook key) lives in git encrypted instead of being created here from
+# host files. Installed BEFORE cert-manager because the ClusterIssuer needs the
+# gandi-credentials SealedSecret unsealed. See sealed-secrets/README.md.
+#
+# The controller's PRIVATE key is the one piece of state a rebuild must preserve:
+# a fresh key cannot decrypt SealedSecrets sealed against the old public cert. We
+# restore it from a host backup if present, else back up the freshly-generated key
+# so the NEXT rebuild can still decrypt today's committed SealedSecrets.
+SEALED_SECRETS_KEY_BACKUP="/mnt/main/config/sealed-secrets/master.key"
+
+echo "==> Installing Sealed Secrets controller..."
+kustomize build --enable-helm "$DIR/sealed-secrets" \
+    | kubectl apply --server-side --force-conflicts -f -
+
+# Restore a previously backed-up sealing key, then restart the controller so it
+# adopts it (the controller decrypts with ALL keys it holds). Do this before any
+# SealedSecret is applied so unsealing uses the key the repo was sealed against.
+if [ -f "$SEALED_SECRETS_KEY_BACKUP" ]; then
+    echo "    Restoring sealing key from $SEALED_SECRETS_KEY_BACKUP..."
+    kubectl apply -f "$SEALED_SECRETS_KEY_BACKUP"
+    kubectl -n sealed-secrets rollout restart deployment/sealed-secrets-controller
+fi
+
+echo "    Waiting for sealed-secrets controller..."
+kubectl rollout status deployment/sealed-secrets-controller \
+    -n sealed-secrets --timeout=180s
+
+# No backup yet → persist the key the controller just generated. Without this, a
+# rebuilt cluster gets a NEW key and can no longer decrypt the committed
+# SealedSecrets (you'd have to re-seal every secret from plaintext).
+if [ ! -f "$SEALED_SECRETS_KEY_BACKUP" ]; then
+    echo "    Backing up sealing key to $SEALED_SECRETS_KEY_BACKUP..."
+    sudo mkdir -p "$(dirname "$SEALED_SECRETS_KEY_BACKUP")"
+    kubectl get secret -n sealed-secrets \
+        -l sealedsecrets.bitnami.com/sealed-secrets-key=active \
+        -o yaml | sudo tee "$SEALED_SECRETS_KEY_BACKUP" >/dev/null
+    sudo chmod 600 "$SEALED_SECRETS_KEY_BACKUP"
+    echo "    ⚠ Keep an OFF-BOX copy of this file. Then run sealed-secrets/seal.sh"
+    echo "      --fetch <secret.yaml>... to seal your secrets against this key"
+    echo "      and commit the *-sealed.yaml results."
+fi
+
+# First-ever bootstrap gate. The SealedSecrets install.sh applies below are NOT
+# shipped as placeholders — they only exist in git once you have sealed real
+# values against THIS cluster's key. Stop here (controller is up, so seal.sh
+# --fetch works) until they do; on a rebuild with the key restored above, the
+# committed files decrypt as-is and this is a no-op.
+missing=()
+for f in cert-manager/gandi-credentials-sealed.yaml argocd/argocd-secret-sealed.yaml; do
+    [ -f "$DIR/$f" ] || missing+=("$f")
+done
+if [ "${#missing[@]}" -gt 0 ]; then
+    echo ""
+    echo "==> STOP: SealedSecret(s) not in the repo yet:"
+    printf '        %s\n' "${missing[@]}"
+    echo "    Seal them now (the controller is running), then re-run this script:"
+    echo "        cp cert-manager/gandi-credentials.yaml.example cert-manager/gandi-credentials.yaml"
+    echo "        cp argocd/argocd-secret.yaml.example argocd/argocd-secret.yaml"
+    echo "        \$EDITOR cert-manager/gandi-credentials.yaml argocd/argocd-secret.yaml"
+    echo "        ./sealed-secrets/seal.sh --fetch cert-manager/gandi-credentials.yaml argocd/argocd-secret.yaml"
+    echo "        git add -A && git commit     # the *-sealed.yaml files + sealed-secrets/pub-cert.pem"
+    echo "    (Do the same for applications/*/ secrets — Argo CD syncs those from git.)"
+    exit 1
+fi
+
 # ── cert-manager ───────────────────────────────────────────────────────────────
 # Issues Let's Encrypt TLS certs for the gateway's HTTPS listeners. Installed via
 # Helm (--enable-helm) with the Gateway API integration enabled. The ClusterIssuer
@@ -104,27 +196,11 @@ echo "==> Installing Gandi DNS-01 webhook..."
 kustomize build --enable-helm "$DIR/cert-manager/webhook-gandi" \
     | kubectl apply --server-side --force-conflicts -f -
 
-# Materialize the `gandi-credentials` Secret from the PAT file on this server.
-# The token stays a host file (never in git); the webhook reads this Secret at
-# challenge time. Name/key are fixed (the chart RBAC + ClusterIssuer reference
-# them). apply-from-dry-run makes it idempotent on re-runs.
-GANDI_PAT_FILE="/mnt/main/config/cert-manager/gandi-pat"
-if [ ! -f "$GANDI_PAT_FILE" ]; then
-    echo "ERROR: Gandi PAT file not found at $GANDI_PAT_FILE"
-    echo "       Create it with your (rotated) Gandi Personal Access Token:"
-    echo "         sudo mkdir -p \$(dirname $GANDI_PAT_FILE)"
-    echo "         printf '%s' '<YOUR_GANDI_PAT>' | sudo tee $GANDI_PAT_FILE >/dev/null"
-    echo "       then re-run this script."
-    exit 1
-fi
-echo "==> Creating gandi-credentials Secret from $GANDI_PAT_FILE..."
-# Strip whitespace/newlines: a trailing newline in the PAT file produces an
-# invalid `Authorization: Bearer <PAT>` header ("invalid header field value"),
-# so the Gandi DNS-01 solver fails to create TXT records. --from-literal with a
-# whitespace-stripped value is robust even if the file was written with `echo`.
-kubectl create secret generic gandi-credentials -n cert-manager \
-    --from-literal=pat="$(tr -d '[:space:]' < "$GANDI_PAT_FILE")" \
-    --dry-run=client -o yaml | kubectl apply -f -
+# The `gandi-credentials` Secret is no longer created here — it ships as a
+# SealedSecret (cert-manager/gandi-credentials-sealed.yaml, applied by the
+# cert-manager build above) and is unsealed by the sealed-secrets controller.
+# Regenerate with `sealed-secrets/seal.sh cert-manager/gandi-credentials.yaml`.
+# See sealed-secrets/README.md.
 
 echo "    Waiting for Gandi webhook..."
 kubectl wait --for=condition=Available deployment/cert-manager-webhook-gandi \
@@ -163,69 +239,18 @@ kubectl rollout status deployment/argocd-server -n argocd --timeout=300s
 kubectl wait --for=condition=Available deployment/argocd-applicationset-controller \
     -n argocd --timeout=180s
 
-# ── Argo CD GitHub webhook secret (out-of-band) ───────────────────────────────
-# Lets GitHub notify Argo CD the instant you push (POST to /api/webhook) instead
-# of waiting for the ~3min polling reconcile. The shared secret is the HMAC key
-# Argo CD uses to verify the webhook's X-Hub-Signature; it must equal the "Secret"
-# field of the GitHub webhook (Settings -> Webhooks). Kept as a host file (never
-# in git), then MERGE-patched into the EXISTING argocd-secret so the server's own
-# keys (admin.password, server.secretkey, tls.*) are preserved — do NOT recreate
-# the Secret. Argo CD's settings watcher picks the key up live (no restart).
-# Non-fatal if missing: webhooks just won't be verified until you add it.
-ARGOCD_WEBHOOK_SECRET_FILE="/mnt/main/config/argocd/github-webhook-secret"
-if [ -f "$ARGOCD_WEBHOOK_SECRET_FILE" ]; then
-    echo "==> Patching argocd-secret with GitHub webhook secret..."
-    kubectl patch secret argocd-secret -n argocd --type merge \
-        -p "{\"stringData\":{\"webhook.github.secret\":\"$(tr -d '[:space:]' < "$ARGOCD_WEBHOOK_SECRET_FILE")\"}}"
-else
-    echo "==> WARNING: $ARGOCD_WEBHOOK_SECRET_FILE not found — GitHub webhook will"
-    echo "    not be enabled. Create it with a random secret, e.g.:"
-    echo "        sudo mkdir -p \$(dirname $ARGOCD_WEBHOOK_SECRET_FILE)"
-    echo "        openssl rand -hex 32 | sudo tee $ARGOCD_WEBHOOK_SECRET_FILE >/dev/null"
-    echo "    then re-run this script and add a GitHub webhook (application/json) to"
-    echo "    https://argocd.home.bkanuka.com/api/webhook with that same secret."
-fi
-
 # From here on, services in applications/ are managed by Argo CD via git, and so
 # is Argo CD itself. Push a change and Argo CD reconciles the cluster to match.
-
-# ── Authentik secret (out-of-band) ───────────────────────────────────────────
-# Authentik is an Argo-managed app, but its secret — session key, Postgres
-# password, Google OAuth client, bootstrap admin password — must never be in git.
-# Seed it from a host env file (mirrors the Gandi pattern). Argo does NOT manage
-# or prune this Secret. The `--from-env-file` keys become the Secret's keys.
-# Non-fatal if missing: the rest of the cluster still comes up; authentik pods
-# just wait until the Secret exists. See applications/authentik/secret.env.example.
-AUTHENTIK_ENV_FILE="/mnt/main/config/authentik/authentik.env"
-if [ -f "$AUTHENTIK_ENV_FILE" ]; then
-    echo "==> Creating authentik-secrets Secret from $AUTHENTIK_ENV_FILE..."
-    kubectl create namespace authentik --dry-run=client -o yaml | kubectl apply -f -
-    kubectl create secret generic authentik-secrets -n authentik \
-        --from-env-file="$AUTHENTIK_ENV_FILE" \
-        --dry-run=client -o yaml | kubectl apply -f -
-else
-    echo "==> WARNING: $AUTHENTIK_ENV_FILE not found."
-    echo "    Authentik pods will stay pending until you create it"
-    echo "    (see applications/authentik/secret.env.example) and re-run this script"
-    echo "    or create the authentik-secrets Secret manually."
-fi
-
-# ── PIA credentials for qbittorrent (out-of-band) ─────────────────────────────
-# qbittorrent's PIA VPN username/password — never in git. Seeded from a host env
-# file into the pia-credentials Secret (keys PIA_USERNAME, PIA_PASSWORD). Argo
-# doesn't manage it. Non-fatal if missing. See applications/qbittorrent/pia.env.example.
-PIA_ENV_FILE="/mnt/main/config/pia/pia.env"
-if [ -f "$PIA_ENV_FILE" ]; then
-    echo "==> Creating pia-credentials Secret from $PIA_ENV_FILE..."
-    kubectl create namespace qbittorrent --dry-run=client -o yaml | kubectl apply -f -
-    kubectl create secret generic pia-credentials -n qbittorrent \
-        --from-env-file="$PIA_ENV_FILE" \
-        --dry-run=client -o yaml | kubectl apply -f -
-else
-    echo "==> WARNING: $PIA_ENV_FILE not found — qbittorrent pod will stay pending"
-    echo "    until you create it (see applications/qbittorrent/pia.env.example) and"
-    echo "    re-run this script or create the pia-credentials Secret manually."
-fi
+#
+# All secrets are now SealedSecrets committed to git and unsealed by the
+# sealed-secrets controller — nothing is created out-of-band here anymore:
+#   - gandi-credentials  -> cert-manager/gandi-credentials-sealed.yaml   (applied above)
+#   - authentik-secrets  -> applications/authentik/authentik-secrets-sealed.yaml (Argo CD)
+#   - pia-credentials    -> applications/qbittorrent/pia-credentials-sealed.yaml (Argo CD)
+#   - argocd webhook key -> argocd/argocd-secret-sealed.yaml (patch, applied above)
+# None are shipped as placeholders — each *-sealed.yaml appears in git the first
+# time you seal real values (the gate after the controller install above walks you
+# through it). See sealed-secrets/README.md.
 
 # ── Summary ───────────────────────────────────────────────────────────────────
 echo ""

@@ -30,8 +30,8 @@ spec:
             # /dev/net/tun required — same as the compose, which only adds NET_ADMIN).
             add: ["NET_ADMIN"]
         envFrom:
-        # PIA_USERNAME + PIA_PASSWORD (out of git — see pia.env.example; install.sh
-        # seeds this Secret from /mnt/main/config/pia/pia.env).
+        # PIA_USERNAME + PIA_PASSWORD — unsealed from pia-credentials-sealed.yaml
+        # (plaintext pia-credentials.yaml is git-ignored; see the .example).
         - secretRef:
             name: pia-credentials
         env:

@@ -12,9 +12,9 @@ kind: Kustomization
 #
 # The webhook reads a Secret named `gandi-credentials` (key `pat`) in the
 # cert-manager namespace (the chart's RBAC hardcodes that exact name). The secret
-# is NOT part of this build — install.sh materializes it at bootstrap from a PAT
-# file on the server (/mnt/main/config/cert-manager/gandi-pat) via
-# `kubectl create secret ... --from-file`, so the token never lands in git.
+# is NOT part of this build — it is the SealedSecret
+# ../gandi-credentials-sealed.yaml (applied with ../), unsealed in-cluster by the
+# sealed-secrets controller, so the plaintext token never lands in git.
 helmCharts:
 - name: cert-manager-webhook-gandi
   repo: https://sintef.github.io/cert-manager-webhook-gandi

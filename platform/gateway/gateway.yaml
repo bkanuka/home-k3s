@@ -39,7 +39,9 @@ spec:
       mode: Terminate
       # cert-manager creates/populates this Secret from the listener hostnames.
       certificateRefs:
-      - name: wildcard-home-bkanuka-tls
+      - group: ""      # explicit: the CRD defaults these, and Argo CD (server-side
+        kind: Secret   # apply) would otherwise report the defaulting as drift
+        name: wildcard-home-bkanuka-tls
     allowedRoutes:
       namespaces:
         from: All
@@ -54,7 +56,9 @@ spec:
     tls:
       mode: Terminate
       certificateRefs:
-      - name: wildcard-home-bkanuka-tls
+      - group: ""
+        kind: Secret
+        name: wildcard-home-bkanuka-tls
     allowedRoutes:
       namespaces:
         from: All

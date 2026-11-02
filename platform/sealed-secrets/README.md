@@ -21,10 +21,12 @@ applications/authentik/
 `seal.sh <plaintext.yaml>...` seals each file and writes `<name>-sealed.yaml`
 next to it. The plaintext must be an ordinary single-document `kind: Secret`
 with `metadata.name` **and** `metadata.namespace` (the ciphertext is bound to the
-namespace). Annotations are carried into the SealedSecret, which is how
-`argocd-secret` gets **patch mode** (`sealedsecrets.bitnami.com/patch: "true"`):
-the controller adds only `webhook.github.secret` to the existing, server-managed
-`argocd-secret` and never deletes it.
+namespace). `argocd-secret` uses **patch mode**: the controller adds only the
+sealed keys to the existing, server-managed Secret and never deletes it. Note the
+controller decides that from `sealedsecrets.bitnami.com/patch: "true"` on the
+**live Secret** (set by `the argocd-secret patch in argocd/base/kustomization.yaml`) — annotations on the
+SealedSecret or in its template don't count; kubeseal only copies input-Secret
+annotations into `spec.template`.
 
 | Plaintext (git-ignored) | → SealedSecret | Argo CD app |
 | ----------------------- | -------------- | ----------- |

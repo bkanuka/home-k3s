@@ -36,3 +36,20 @@ patches:
   target:
     kind: ConfigMap
     name: argocd-rbac-cm
+# Let the sealed webhook/OIDC keys be PATCHED into the upstream (empty)
+# argocd-secret. The Sealed Secrets controller only patches an existing Secret
+# if the LIVE Secret carries this annotation — it ignores annotations on the
+# SealedSecret (../argocd-secret-sealed.yaml) and its template. Without it,
+# unsealing fails with "already exists and is not managed by SealedSecret";
+# with it, only the sealed keys are added and server.secretkey / admin.password /
+# tls.* are left alone (no `managed` annotation, so it never takes ownership).
+# Inline JSON patch rather than a `kind: Secret` patch file, which the
+# pre-commit hook would (rightly) refuse to commit.
+- target:
+    kind: Secret
+    name: argocd-secret
+  patch: |-
+    - op: add
+      path: /metadata/annotations
+      value:
+        sealedsecrets.bitnami.com/patch: "true"

@@ -116,10 +116,12 @@ All four are applied by Argo CD; none ship as placeholders, so until a file is
 sealed and pushed its app shows a build error in Argo CD (and `install.sh` lists
 what's missing at the end).
 
-The argocd one carries the `sealedsecrets.bitnami.com/patch` annotation on the
-plaintext Secret (kubeseal copies it through), so only `webhook.github.secret` is
-added to the server-managed `argocd-secret`, leaving
-`server.secretkey`/`admin.password`/`tls.*` intact.
+The argocd one is **patched into** the server-managed `argocd-secret` (only
+`webhook.github.secret` + `oidc.google.*` are added; `server.secretkey`,
+`admin.password`, `tls.*` stay intact). The controller allows that only if the
+*live* Secret carries `sealedsecrets.bitnami.com/patch: "true"` — set by
+the `argocd-secret` patch in [`argocd/base/kustomization.yaml`](argocd/base/kustomization.yaml); annotations on
+the SealedSecret itself are ignored.
 
 ```bash
 # on the k3s host, once the controller is up:

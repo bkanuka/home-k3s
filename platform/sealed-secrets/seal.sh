@@ -10,7 +10,9 @@
 # kustomization; the -sealed.yaml output is what gets committed and listed. Each
 # plaintext Secret must set metadata.namespace: the ciphertext is bound to it, so
 # leaving it out would seal against kubeseal's default namespace and never unseal.
-# Annotations (e.g. sealedsecrets.bitnami.com/patch) are carried through.
+# Input annotations are copied into the SealedSecret's spec.template only (NOT its
+# own metadata) — e.g. patch mode for argocd-secret must be enabled on the live
+# Secret instead (the argocd-secret patch in argocd/base/kustomization.yaml).
 #
 # Seals against the committed public cert (platform/sealed-secrets/pub-cert.pem) so it
 # works offline; --fetch refreshes that cert from the live controller first (once

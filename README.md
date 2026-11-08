@@ -145,8 +145,9 @@ minus `*-sealed.yaml`); `seal.sh` refuses to seal a file git would track.
 
 > **⚠️ The sealing key is the one thing you must not lose.** The controller's
 > **private** key decrypts every SealedSecret. `install.sh` backs it up to
-> `/mnt/main/config/sealed-secrets/master.key` and restores it on a rebuild — keep
-> an **off-box copy** too. Lose it and a rebuilt cluster can't decrypt anything in
+> `/mnt/main/config/sealed-secrets/master.key` and restores it on a rebuild; the
+> **off-box copy** is the git-ignored `platform/sealed-secrets/master.key` in your
+> checkout. Lose both and a rebuilt cluster can't decrypt anything in
 > git (you'd re-seal every secret from plaintext). The **public** cert
 > (`platform/sealed-secrets/pub-cert.pem`) is safe to commit. Full details:
 > [`platform/sealed-secrets/README.md`](platform/sealed-secrets/README.md).

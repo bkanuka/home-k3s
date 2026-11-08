@@ -27,9 +27,10 @@ applications/ddns-updater/config.json
 *credentials*.yaml
 !*-sealed.yaml
 
-# Sealed Secrets sealing key backup — NEVER commit (this is the PRIVATE key that
-# decrypts every SealedSecret). It lives on the server at
-# /mnt/main/config/sealed-secrets/master.key; keep an off-box copy. Note:
-# sealed-secrets/pub-cert.pem is the PUBLIC cert and IS committed (safe).
+# Sealed Secrets sealing key — NEVER commit (this is the PRIVATE key that
+# decrypts every SealedSecret). The server keeps it at
+# /mnt/main/config/sealed-secrets/master.key; the off-box copy lives in the
+# working tree at platform/sealed-secrets/master.key (see its README). Note:
+# platform/sealed-secrets/pub-cert.pem is the PUBLIC cert and IS committed (safe).
 master.key
 *.master.key

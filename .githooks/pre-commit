@@ -69,7 +69,8 @@ if [ -n "$keys" ]; then
     echo "✗ pre-commit: private key material staged:" >&2
     printf '    %s\n' $keys >&2
     echo "  Never commit private keys (the Sealed Secrets sealing key lives only at" >&2
-    echo "  /mnt/main/config/sealed-secrets/master.key + an off-box copy)." >&2
+    echo "  /mnt/main/config/sealed-secrets/master.key on the server and in the" >&2
+    echo "  git-ignored platform/sealed-secrets/master.key)." >&2
     fail=1
 fi
 

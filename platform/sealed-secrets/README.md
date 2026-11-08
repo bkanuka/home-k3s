@@ -53,19 +53,30 @@ commit.
 ## The sealing key (⚠️ the one thing you must not lose)
 
 The controller generates its private key on first boot. **A rebuilt cluster gets a
-new key and can no longer decrypt SealedSecrets sealed against the old one.**
-`install.sh` therefore:
+new key and can no longer decrypt SealedSecrets sealed against the old one.** The
+key (the `active` sealing-key Secret, as `kubectl get -o yaml`) is kept in two
+places, neither of them in git:
 
-- **restores** the key from `/mnt/main/config/sealed-secrets/master.key` if that
-  backup exists — applied right after k3s is up, *before* Argo CD deploys this
-  controller, which then adopts the existing active key — and
-- **backs it up** there after first generation if no backup exists yet (it waits
-  for Argo CD to roll the controller out).
+- **On the server**: `/mnt/main/config/sealed-secrets/master.key` (root, 0600).
+  `install.sh` **restores** from it right after k3s is up — *before* Argo CD
+  deploys this controller, which then adopts the existing active key — and
+  **backs up** a freshly generated key there on a first-ever install.
+- **Here, as the off-box copy**: `platform/sealed-secrets/master.key`. Git-ignored
+  by name (`.gitignore`: `master.key`), and `.githooks/pre-commit` rejects any
+  staged `PRIVATE KEY` block as a backstop. (Re)fetch it from the cluster with:
 
-That single host file is the only cluster state that must survive a wipe (with
-the plaintext files backed up too you can always re-seal from scratch). Keep
-off-box copies of both. To rotate/replace the key, restore a different
-`master.key` and re-run `seal.sh --fetch` on every plaintext secret.
+  ```bash
+  kubectl -n sealed-secrets get secret -l sealedsecrets.bitnami.com/sealed-secrets-key=active -o yaml \
+    > platform/sealed-secrets/master.key && chmod 600 platform/sealed-secrets/master.key
+  ```
+
+If the server copy is lost, put the repo copy back at the host path before running
+`install.sh` (or `kubectl apply -f` it into the `sealed-secrets` namespace before
+the controller first starts). It also lets you recover a plaintext offline:
+`kubeseal --recovery-unseal --recovery-private-key platform/sealed-secrets/master.key < <name>-sealed.yaml`.
+With the plaintext files backed up too you can always re-seal from scratch. To
+rotate/replace the key, restore a different `master.key` and re-run
+`seal.sh --fetch` on every plaintext secret.
 
 ## Sealing / rotating secrets
 

@@ -1,21 +1,9 @@
-# AuthZ: only these Google accounts may use ddns-updater.home.bkanuka.com. Edit the list
-# below to grant/revoke access to this app alone.
-#
-# Istio evaluates CUSTOM (authorizationpolicy.yaml -> oauth2-proxy login) before
-# DENY, so by the time this runs the user is logged in and oauth2-proxy has set
-# x-auth-request-email (ext_authz OVERWRITES any client-supplied copy, so it
-# can't be spoofed). This denies the host to anyone whose email is not listed —
-# notValues also matches when the header is absent, so "no email" is denied too.
-#
-# DENY rather than ALLOW on purpose: ALLOW policies flip the whole gateway (every
-# host) to default-deny and their rules are OR'd across apps, so per-app ALLOW
-# lists on a shared gateway can't be kept independent. DENY only affects what it
-# matches. Apps without an allowlist.yaml are open to anyone who can log in.
+# Denies this host to anyone whose Google account is not listed below.
 apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
 metadata:
   name: ddns-updater-allowlist
-  namespace: istio-system
+  namespace: istio-system  # must match the Gateway's namespace
 spec:
   targetRefs:
   - group: gateway.networking.k8s.io
@@ -27,7 +15,9 @@ spec:
     - operation:
         hosts:
         - ddns-updater.home.bkanuka.com
+        ports:
+        - "443"  # HTTPS only; a DENY with just HTTP fields would also drop the Plex TCP listener
     when:
-    - key: request.headers[x-auth-request-email]
-      notValues:
+    - key: request.headers[x-auth-request-email]  # set by oauth2-proxy (ext_authz)
+      notValues:  # also matches when the header is absent
       - bkanuka@gmail.com

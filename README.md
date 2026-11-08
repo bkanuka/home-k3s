@@ -110,9 +110,10 @@ platform/oauth2-proxy/
 | `platform/cert-manager/gandi-credentials.yaml` | `platform/cert-manager/gandi-credentials-sealed.yaml` | `cert-manager` |
 | `platform/oauth2-proxy/oauth2-proxy-secret.yaml` | `platform/oauth2-proxy/oauth2-proxy-secret-sealed.yaml` | `oauth2-proxy` |
 | `applications/qbittorrent/pia-credentials.yaml` | `applications/qbittorrent/pia-credentials-sealed.yaml` | `qbittorrent` |
+| `applications/qbittorrent/qbittorrent-apikey-secret.yaml` | `applications/qbittorrent/qbittorrent-apikey-secret-sealed.yaml` | `qbittorrent` |
 | `argocd/argocd-secret.yaml` (patch) | `argocd/argocd-secret-sealed.yaml` | `argocd` (self-managed) |
 
-All four are applied by Argo CD; none ship as placeholders, so until a file is
+All five are applied by Argo CD; none ship as placeholders, so until a file is
 sealed and pushed its app shows a build error in Argo CD (and `install.sh` lists
 what's missing at the end).
 
@@ -173,7 +174,7 @@ minus `*-sealed.yaml`); `seal.sh` refuses to seal a file git would track.
 | `applications/httpbin/` | Sample app — `HTTPRoute` + Google-login `AuthorizationPolicy` + email `allowlist.yaml` (the reference for protecting a service). |
 | `applications/plex/` | Plex Media Server (GPU transcode) — hostname `HTTPRoute` + a TCP `TCPRoute` on :32400 for built-in Remote Access. |
 | `applications/ddns-updater/` | Dynamic DNS updater (Gandi) — keeps the apex A record current; UI behind Google login. |
-| `applications/qbittorrent/` | qBittorrent over a PIA WireGuard tunnel; Web UI behind Google login. |
+| `applications/qbittorrent/` | qBittorrent over a PIA WireGuard tunnel; Web UI behind Google login. `qBittorrent.conf` is git-managed (ConfigMap written over the hostPath copy on every start). |
 
 ## Versions
 

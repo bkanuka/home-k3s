@@ -32,6 +32,7 @@ annotations into `spec.template`.
 | ----------------------- | -------------- | ----------- |
 | `../cert-manager/gandi-credentials.yaml` | `../cert-manager/gandi-credentials-sealed.yaml` | `cert-manager` |
 | `../../applications/qbittorrent/pia-credentials.yaml` | `../../applications/qbittorrent/pia-credentials-sealed.yaml` | `qbittorrent` |
+| `../../applications/qbittorrent/qbittorrent-apikey-secret.yaml` | `../../applications/qbittorrent/qbittorrent-apikey-secret-sealed.yaml` | `qbittorrent` |
 | `../oauth2-proxy/oauth2-proxy-secret.yaml` | `../oauth2-proxy/oauth2-proxy-secret-sealed.yaml` | `oauth2-proxy` |
 | `../../argocd/argocd-secret.yaml` (patch) | `../../argocd/argocd-secret-sealed.yaml` | `argocd` (self-managed) |
 

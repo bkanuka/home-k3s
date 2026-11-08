@@ -1,8 +1,5 @@
-# qBittorrent behind a PIA VPN (j4ym0/pia-qbittorrent). Translated from the
-# working docker-compose. The container runs the WireGuard VPN + qBittorrent and
-# auto-syncs PIA's randomly-assigned forwarded port to qBittorrent's listen port
-# — that peer traffic flows through the VPN tunnel, NOT the gateway, so nothing
-# external changes when the port rotates. The gateway only serves the Web UI (8888).
+# qBittorrent + PIA WireGuard VPN. qBittorrent.conf is git-managed: the
+# render-config initContainer writes the ConfigMap copy over /config on every start.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -10,9 +7,8 @@ metadata:
   namespace: qbittorrent
 spec:
   replicas: 1
-  # Recreate: the /config hostPath can't be mounted by two pods at once.
   strategy:
-    type: Recreate
+    type: Recreate  # /config hostPath can't be shared by two pods
   selector:
     matchLabels:
       app: qbittorrent
@@ -21,16 +17,39 @@ spec:
       labels:
         app: qbittorrent
     spec:
+      initContainers:
+      # Keeps the old conf as .prev, writes the ConfigMap copy with the API key filled in.
+      - name: render-config
+        image: busybox:1.37.0
+        command: ["sh", "-ec"]
+        args:
+        - |
+          dst=/config/qBittorrent/config/qBittorrent.conf
+          mkdir -p "$(dirname "$dst")"
+          [ ! -f "$dst" ] || cp -p "$dst" "$dst.prev"
+          sed "s|__WEBUI_API_KEY__|$WEBUI_API_KEY|" /seed/qBittorrent.conf > "$dst.tmp"
+          chown 1000:1000 "$dst.tmp" && chmod 600 "$dst.tmp"
+          mv "$dst.tmp" "$dst"
+        env:
+        - name: WEBUI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: qbittorrent-apikey
+              key: WEBUI_API_KEY
+        volumeMounts:
+        - name: config
+          mountPath: /config
+        - name: config-seed
+          mountPath: /seed
+          readOnly: true
       containers:
       - name: qbittorrent
         image: j4ym0/pia-qbittorrent
         securityContext:
           capabilities:
-            # Needed to bring up the WireGuard interface
-            add: ["NET_ADMIN"]
+            add: ["NET_ADMIN"]  # WireGuard interface
         envFrom:
-        # PIA_USERNAME + PIA_PASSWORD — unsealed from pia-credentials-sealed.yaml
-        - secretRef:
+        - secretRef:  # PIA_USERNAME, PIA_PASSWORD
             name: pia-credentials
         env:
         - name: PIA_REGION
@@ -45,12 +64,6 @@ spec:
           value: "1000"
         - name: TZ
           value: America/Toronto
-        # Behind the gateway + Google login on a different hostname, so turn off
-        # qBittorrent's CSRF and Host-header checks (as in the compose).
-        - name: CSRFPROTECTION
-          value: "false"
-        - name: HOSTHEADERVALIDATION
-          value: "false"
         ports:
         - name: webui
           containerPort: 8888
@@ -65,7 +78,7 @@ spec:
           mountPath: /downloads/temp
         - name: config
           mountPath: /config
-        - name: mam                      # myanonamouse session cookie
+        - name: mam  # myanonamouse session cookie
           mountPath: /mam
       volumes:
       - name: complete
@@ -84,3 +97,6 @@ spec:
         hostPath:
           path: /mnt/main/config/qbittorrent/mam
           type: DirectoryOrCreate
+      - name: config-seed
+        configMap:
+          name: qbittorrent-config

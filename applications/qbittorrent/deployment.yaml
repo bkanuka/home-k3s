@@ -26,12 +26,10 @@ spec:
         image: j4ym0/pia-qbittorrent
         securityContext:
           capabilities:
-            # Needed to bring up the WireGuard interface (kernel WireGuard, so no
-            # /dev/net/tun required — same as the compose, which only adds NET_ADMIN).
+            # Needed to bring up the WireGuard interface
             add: ["NET_ADMIN"]
         envFrom:
         # PIA_USERNAME + PIA_PASSWORD — unsealed from pia-credentials-sealed.yaml
-        # (plaintext pia-credentials.yaml is git-ignored; see the .example).
         - secretRef:
             name: pia-credentials
         env:
@@ -86,7 +84,3 @@ spec:
         hostPath:
           path: /mnt/main/config/qbittorrent/mam
           type: DirectoryOrCreate
-# NOTE: the compose sets a 655360 nofile ulimit. Kubernetes has no per-pod ulimit
-# field; the pod inherits containerd's default LimitNOFILE (1048576 on k3s), which
-# is higher, so qBittorrent should be fine. If it ever hits the limit, raise it in
-# the containerd/k3s runtime config on the host (not settable in this manifest).

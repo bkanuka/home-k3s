@@ -1,25 +1,12 @@
 #!/bin/bash
 # Seal plaintext Secret manifest(s) into SealedSecrets, written next to the input
-# with "-sealed" appended to the file name:
-#
-#   platform/sealed-secrets/seal.sh applications/qbittorrent/pia-credentials.yaml
-#   ->
-#
-# The plaintext file lives in the app dir but is git-ignored (see .gitignore —
-# this script refuses to seal a file git would track) and is NOT listed in the
-# kustomization; the -sealed.yaml output is what gets committed and listed. Each
-# plaintext Secret must set metadata.namespace: the ciphertext is bound to it, so
-# leaving it out would seal against kubeseal's default namespace and never unseal.
-# Input annotations are copied into the SealedSecret's spec.template only (NOT its
-# own metadata) — e.g. patch mode for argocd-secret must be enabled on the live
-# Secret instead (the argocd-secret patch in argocd/base/kustomization.yaml).
-#
-# Seals against the committed public cert (platform/sealed-secrets/pub-cert.pem) so it
-# works offline; --fetch refreshes that cert from the live controller first (once
-# after install, and after any key rotation). Requires kubeseal + mikefarah/yq
-# (both installed by install.sh).
+# as <name>-sealed.yaml, using the committed pub-cert.pem (--fetch refreshes it
+# from the live controller first). Requires kubeseal + mikefarah/yq.
 #
 #   platform/sealed-secrets/seal.sh [--fetch] <secret.yaml>...
+#
+# The input must be git-ignored and must set metadata.namespace (the ciphertext is
+# bound to it). Input annotations land only in the SealedSecret's spec.template.
 set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

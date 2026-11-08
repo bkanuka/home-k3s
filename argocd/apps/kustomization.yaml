@@ -3,10 +3,8 @@ kind: Kustomization
 
 namespace: argocd
 
-# What Argo CD deploys: two ApplicationSets (one Application per platform/* and
-# applications/* directory) and the Application that makes Argo CD manage its
-# own ../ directory. Applied by install.sh right after ../base so the platform
-# (sealed-secrets, cert-manager, gateway) starts syncing from git immediately.
+# What Argo CD deploys: one ApplicationSet each for platform/* and applications/*,
+# plus the Application through which Argo CD manages its own ../ directory.
 resources:
 - applicationset-platform.yaml
 - applicationset-applications.yaml

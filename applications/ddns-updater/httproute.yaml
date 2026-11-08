@@ -1,9 +1,4 @@
-# ddns-updater web UI at ddns-updater.home.bkanuka.com over HTTPS, PROTECTED by Google login
-# (oauth2-proxy forward-auth, see authorizationpolicy.yaml + allowlist.yaml and
-# platform/oauth2-proxy/). The sign-in flow runs on auth.home.bkanuka.com and the
-# session cookie is scoped to .home.bkanuka.com, so this route needs no auth
-# carve-out: everything goes to the app, gated by ext_authz at the gateway.
-# ROOT_URL is "/" and the service listens on 8572.
+# ddns-updater web UI at ddns-updater.home.bkanuka.com; Google login is enforced at the gateway by authorizationpolicy.yaml.
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:

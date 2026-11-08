@@ -20,9 +20,7 @@ spec:
         - name: web
           containerPort: 8572
         env:
-        # Provider config (domains + Gandi token) is read from
-        # /updater/data/config.json, supplied via the hostPath mount below — it
-        # is NOT in git. Leaving CONFIG unset makes ddns-updater use that file.
+        # CONFIG is left unset so the provider config is read from /updater/data/config.json
         - name: PERIOD
           value: 5m
         - name: UPDATE_COOLDOWN_PERIOD
@@ -59,10 +57,7 @@ spec:
         - name: data
           mountPath: /updater/data
       volumes:
-      # Config + runtime state live on the server (single node), read/written in
-      # place — config.json (secret, not in git) and updates.json history. Must
-      # be readable/writable by the image's UID 1000.
-      - name: data
+      - name: data  # config.json (not in git) + updates.json; must be writable by UID 1000
         hostPath:
           path: /mnt/main/config/ddns-updater
           type: Directory

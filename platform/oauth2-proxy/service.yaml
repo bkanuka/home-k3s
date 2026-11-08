@@ -1,5 +1,4 @@
-# Referenced by the Istio ext_authz provider (platform/istio meshConfig) as
-# oauth2-proxy.oauth2-proxy.svc.cluster.local:4180 and by httproute.yaml.
+# Target of Istio's ext_authz provider (platform/istio meshConfig) and of httproute.yaml.
 apiVersion: v1
 kind: Service
 metadata:

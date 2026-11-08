@@ -1,35 +1,19 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-# Platform app deployed by Argo CD; the base + istiod Helm charts are inflated by
-# kustomize inside Argo CD's repo-server (kustomize.buildOptions: --enable-helm).
-# istiod rewrites the caBundle/failurePolicy of its own webhook configs at
-# runtime — the platform ApplicationSet's ignoreDifferences covers that.
+# Ingress-only Istio (base + istiod; no sidecars, ambient or cni): the Gateway API
+# control plane plus the ext_authz provider for oauth2-proxy.
 resources:
 - namespace.yaml
 
-# Ingress-only Istio: just the control plane + Gateway API support. No mesh data
-# plane (no sidecars, no ambient ztunnel, no istio-cni). The Gateway is a plain
-# Envoy pod that istiod manages; it does not need the mesh to route traffic.
-#
-# To add mTLS/mesh later, re-introduce the cni + ztunnel charts (ambient) or
-# enable sidecar injection. Gateway-level auth (ext_authz / JWT) does NOT require
-# any of that — it is enforced on the gateway proxy regardless.
 helmCharts:
-# 1. Base: CRDs and cluster-scoped resources
-- name: base
+- name: base  # CRDs + cluster-scoped resources
   repo: https://istio-release.storage.googleapis.com/charts
   version: 1.29.2
   releaseName: istio-base
   namespace: istio-system
   includeCRDs: true
 
-# 2. Istiod: control plane. Default profile; standard-channel Gateway API is on by
-#    default in Istio 1.29, so `Gateway`/`HTTPRoute`/`GRPCRoute` (v1) are reconciled
-#    out of the box. TCPRoute/TLSRoute are EXPERIMENTAL-channel (v1alpha2) and are
-#    only reconciled when PILOT_ENABLE_ALPHA_GATEWAY_API=true — required here for
-#    the Plex TCP passthrough route (applications/plex/tcproute.yaml). Without it
-#    the TCPRoute gets no status and attaches to 0 listeners.
 - name: istiod
   repo: https://istio-release.storage.googleapis.com/charts
   version: 1.29.2
@@ -38,45 +22,31 @@ helmCharts:
   valuesInline:
     pilot:
       env:
-        PILOT_ENABLE_ALPHA_GATEWAY_API: "true"
-    # ext_authz provider for Google login via oauth2-proxy (platform/oauth2-proxy).
-    # An AuthorizationPolicy with action: CUSTOM + provider.name=oauth2-proxy (see
-    # any applications/*/authorizationpolicy.yaml) sends matching requests here
-    # first. Only apps that opt in via such a policy are affected — everything
-    # else is untouched.
+        PILOT_ENABLE_ALPHA_GATEWAY_API: "true"  # TCPRoute (experimental channel) for the Plex passthrough
+    # ext_authz provider (Google login via oauth2-proxy); apps opt in with an
+    # AuthorizationPolicy of action: CUSTOM.
     meshConfig:
       extensionProviders:
       - name: oauth2-proxy
         envoyExtAuthzHttp:
           service: oauth2-proxy.oauth2-proxy.svc.cluster.local
           port: 4180
-          # Host, Method and Path are always forwarded; add the session cookie so
-          # an existing login is recognised.
+          # Session cookie, on top of the always-forwarded Host/Method/Path.
           includeRequestHeadersInCheck:
           - cookie
           - authorization
-          # Where to send the user AFTER Google login. Left to itself oauth2-proxy
-          # records only the bare path of the check request ("/foo"), so the
-          # callback on auth.home.bkanuka.com would land on "/" there (its static
-          # "Authenticated" page) instead of the app — and it ignores
-          # X-Forwarded-Host/Proto/Uri for this (verified against v7.15.5). The
-          # one header it honours is X-Auth-Request-Redirect, so synthesise the
-          # absolute app URL from the original request with Envoy command
-          # operators (:path includes the query string). oauth2-proxy's
-          # whitelist-domains=.home.bkanuka.com validates it.
+          # Post-login redirect target: oauth2-proxy ignores X-Forwarded-* for this
+          # and honours only X-Auth-Request-Redirect (%REQ(:path)% includes the query).
           includeAdditionalHeadersInCheck:
             X-Auth-Request-Redirect: "https://%REQ(:authority)%%REQ(:path)%"
-          # On allow (200 — the only status Envoy's ext_authz accepts), pass the
-          # identity headers to the app. These are
-          # OVERRIDDEN from the ext_authz response, so a client can't spoof them;
-          # applications/*/allowlist.yaml matches on x-auth-request-email.
+          # Identity headers passed to the app on allow (overwritten from the
+          # ext_authz response, so a client can't spoof them).
           headersToUpstreamOnAllow:
           - x-auth-request-user
           - x-auth-request-email
           - x-auth-request-preferred-username
           - x-auth-request-groups
-          # On deny (302 to Google), relay the redirect and the CSRF cookie to
-          # the browser.
+          # On deny, relay the 302 to Google and its CSRF cookie to the browser.
           headersToDownstreamOnDeny:
           - content-type
           - set-cookie

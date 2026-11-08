@@ -1,20 +1,15 @@
 #!/bin/bash
-# Bootstrap the home k3s cluster. Deliberately minimal: install k3s, then get
-# Argo CD syncing from git as fast as possible — Argo CD installs everything
-# else (platform/* and applications/*). Idempotent; re-run to re-apply the k3s
-# config or re-bootstrap Argo CD.
+# Bootstrap the home k3s cluster: install k3s, then Argo CD, which installs
+# everything else (platform/* and applications/*) from git. Idempotent.
 set -euo pipefail
 
-KUBESEAL_VERSION="0.38.4"      # Sealed Secrets CLI; the controller chart is pinned in platform/sealed-secrets/
-YQ_VERSION="4.53.3"            # mikefarah/yq — used by platform/sealed-secrets/seal.sh + .githooks/pre-commit
-# Argo CD is pinned in argocd/base/kustomization.yaml; everything else in platform/*/.
+KUBESEAL_VERSION="0.38.4"      # Sealed Secrets CLI (the controller chart is pinned in platform/sealed-secrets/)
+YQ_VERSION="4.53.3"            # mikefarah/yq, used by platform/sealed-secrets/seal.sh and .githooks/pre-commit
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SEALED_SECRETS_KEY_BACKUP="/mnt/main/config/sealed-secrets/master.key"
 
 # ── host tools (only what platform/sealed-secrets/seal.sh needs) ───────────────
-# No kustomize/helm on the host: Argo CD renders every kustomization (Helm charts
-# included) in its repo-server.
 if ! command -v kubeseal >/dev/null 2>&1; then
     echo "==> Installing kubeseal v${KUBESEAL_VERSION}..."
     curl -sL "https://github.com/bitnami-labs/sealed-secrets/releases/download/v${KUBESEAL_VERSION}/kubeseal-${KUBESEAL_VERSION}-linux-amd64.tar.gz" \
@@ -23,7 +18,7 @@ if ! command -v kubeseal >/dev/null 2>&1; then
 else
     echo "==> kubeseal already installed ($(kubeseal --version 2>/dev/null))"
 fi
-# NOTE: mikefarah/yq (Go); the unrelated Python "yq" has a different CLI.
+# The Python "yq" has a different CLI; require mikefarah's.
 if ! yq --version 2>/dev/null | grep -q mikefarah; then
     echo "==> Installing yq v${YQ_VERSION}..."
     sudo curl -sL "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_amd64" \
@@ -34,9 +29,7 @@ else
 fi
 
 # ── k3s ───────────────────────────────────────────────────────────────────────
-# k3s-config.yaml is the whole server config (disables traefik/servicelb, etc.).
-# Installed on every run so the file in git is the source of truth; k3s only
-# reads it at start, so a change on an existing node needs `systemctl restart k3s`.
+# Installs k3s-config.yaml as the server config on every run; k3s reads it only at start.
 echo "==> Installing k3s config to /etc/rancher/k3s/config.yaml..."
 sudo mkdir -p /etc/rancher/k3s
 if ! sudo cmp -s "$DIR/k3s-config.yaml" /etc/rancher/k3s/config.yaml; then
@@ -59,11 +52,8 @@ done
 echo "    Node ready."
 
 # ── Sealed Secrets key restore ────────────────────────────────────────────────
-# The sealed-secrets controller is deployed by Argo CD (platform/sealed-secrets),
-# but its PRIVATE key is the one piece of state a rebuild must preserve: a fresh
-# key cannot decrypt the SealedSecrets committed in git. Put the backed-up key in
-# place BEFORE the controller ever starts — it adopts an existing active key
-# instead of generating one. (Backup of a freshly generated key happens below.)
+# Must happen before the controller first starts: it adopts an existing active key
+# instead of generating one, and a fresh key can't decrypt the SealedSecrets in git.
 if [ -f "$SEALED_SECRETS_KEY_BACKUP" ]; then
     echo "==> Restoring Sealed Secrets sealing key from $SEALED_SECRETS_KEY_BACKUP..."
     kubectl create namespace sealed-secrets --dry-run=client -o yaml | kubectl apply -f -
@@ -71,18 +61,10 @@ if [ -f "$SEALED_SECRETS_KEY_BACKUP" ]; then
 fi
 
 # ── Argo CD ─────────────────────────────────────────────────────────────────────
-# Two plain `kubectl apply -k` (kubectl's built-in kustomize; nothing else to
-# install): argocd/base = Argo CD itself, argocd/apps = the ApplicationSets for
-# platform/* and applications/* plus the Application through which Argo CD then
-# manages its own argocd/ directory from git. From here on everything is GitOps:
-# Argo CD installs the Gateway API CRDs, MetalLB, Istio, the GPU plugin,
-# sealed-secrets, cert-manager, the gateway, then the apps.
-# --server-side avoids the annotation size limit on the large install manifest.
-# NOT argocd/ itself: that also lists Argo CD's HTTPRoute (needs the Gateway API
-# CRDs) and the sealed webhook secret (needs the sealed-secrets controller) —
-# both things Argo CD is about to install (see argocd/).
+# argocd/base = Argo CD itself; argocd/apps = the ApplicationSets + self-managing
+# Application.
 echo "==> Bootstrapping Argo CD..."
-kubectl apply --server-side --force-conflicts -k "$DIR/argocd/base"
+kubectl apply --server-side --force-conflicts -k "$DIR/argocd/base"  # --server-side: install manifest exceeds the annotation size limit
 echo "    Waiting for Argo CD..."
 kubectl rollout status deployment/argocd-server -n argocd --timeout=300s
 kubectl wait --for=condition=Available deployment/argocd-applicationset-controller \
@@ -91,9 +73,7 @@ echo "==> Installing the ApplicationSets + self-managing Application..."
 kubectl apply --server-side --force-conflicts -k "$DIR/argocd/apps"
 
 # ── Sealed Secrets key backup (first install only) ────────────────────────────
-# Argo CD is now deploying platform/sealed-secrets. If no backup exists this is a
-# first-ever install: wait for the controller, then persist the key it generated
-# so the NEXT rebuild can still decrypt today's committed SealedSecrets.
+# Persists the key the controller generated so the next rebuild can decrypt today's SealedSecrets.
 if [ ! -f "$SEALED_SECRETS_KEY_BACKUP" ]; then
     echo "==> Waiting for Argo CD to deploy the sealed-secrets controller..."
     until kubectl get deployment sealed-secrets-controller -n sealed-secrets >/dev/null 2>&1; do
@@ -113,8 +93,7 @@ fi
 echo ""
 echo "==> Bootstrap complete. Argo CD is syncing platform/* and applications/* from git."
 echo ""
-# Every SealedSecret appears in git the first time real values are sealed against
-# this cluster's key; until then the app that lists it fails to build in Argo CD.
+# SealedSecrets not yet committed; their apps fail to build in Argo CD until sealed.
 missing=()
 for f in platform/cert-manager/gandi-credentials-sealed.yaml argocd/argocd-secret-sealed.yaml \
          platform/oauth2-proxy/oauth2-proxy-secret-sealed.yaml \

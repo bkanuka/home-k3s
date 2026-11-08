@@ -1,14 +1,5 @@
-# NVIDIA k8s device plugin (pinned v0.19.3).
-#
-# Advertises `nvidia.com/gpu` on the node so pods (e.g. Plex) can request a GPU
-# for hardware transcoding. Based on NVIDIA's upstream static manifest, with one
-# change for k3s: `runtimeClassName: nvidia`.
-#
-# k3s auto-detects the NVIDIA container runtime and registers the `nvidia`
-# RuntimeClass, but does NOT make it the default runtime. The plugin talks to the
-# driver via NVML, so it must itself run under the nvidia runtime to see the GPUs
-# — hence runtimeClassName below. Any workload that requests nvidia.com/gpu must
-# likewise set `runtimeClassName: nvidia` (see applications/plex).
+# NVIDIA device plugin (upstream static manifest): advertises nvidia.com/gpu so
+# pods such as Plex can request a GPU for hardware transcoding.
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -25,13 +16,11 @@ spec:
       labels:
         name: nvidia-device-plugin-ds
     spec:
-      # Run under the nvidia container runtime so the plugin can enumerate GPUs.
-      runtimeClassName: nvidia
+      runtimeClassName: nvidia  # k3s registers this class but does not default to it; GPU pods must set it too
       tolerations:
       - key: nvidia.com/gpu
         operator: Exists
         effect: NoSchedule
-      # Mark this pod as a critical add-on so it is rescheduled after a failure.
       priorityClassName: "system-node-critical"
       containers:
       - image: nvcr.io/nvidia/k8s-device-plugin:v0.19.3

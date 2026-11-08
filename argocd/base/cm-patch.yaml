@@ -1,24 +1,12 @@
-# Strategic-merge patch into the upstream argocd-cm: OIDC SSO straight against
-# Google (Argo CD is OIDC-native, so no forward-auth proxy in between). `url` is
-# required so Argo CD builds correct OIDC redirect URLs behind the
-# TLS-terminating gateway. The Google client is confidential, so id + secret
-# come from argocd-secret ($oidc.google.* references) — sealed via
-# ../argocd-secret-sealed.yaml. Who gets access is decided by RBAC on the email
-# claim (rbac-patch.yaml). The local `admin` account stays enabled as a
-# break-glass fallback.
-#
-# Google Cloud Console: the OAuth client needs this Authorized redirect URI:
-#   https://argocd.home.bkanuka.com/auth/callback
+# Google OIDC SSO for Argo CD. The OAuth client needs the Authorized redirect URI
+# https://argocd.home.bkanuka.com/auth/callback; its id/secret come from argocd-secret.
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: argocd-cm
 data:
-  # platform/* kustomizations inflate Helm charts (cert-manager, sealed-secrets,
-  # the Gandi webhook) via `helmCharts:`; Argo CD's repo-server needs this flag
-  # to let kustomize call its bundled helm.
-  kustomize.buildOptions: --enable-helm
-  url: https://argocd.home.bkanuka.com
+  kustomize.buildOptions: --enable-helm  # platform/* kustomizations use helmCharts:
+  url: https://argocd.home.bkanuka.com  # required for correct OIDC redirect URLs behind the gateway
   oidc.config: |
     name: Google
     issuer: https://accounts.google.com

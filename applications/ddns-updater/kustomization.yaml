@@ -1,18 +1,12 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-# NOTE: the web UI is exposed at ddns-updater.home.bkanuka.com and PROTECTED by
-# Google login (authorizationpolicy.yaml + allowlist.yaml), same as httpbin.
-#
-# The provider config (domains + Gandi token) is NOT in git — it lives on the
-# server at /mnt/main/config/ddns-updater/config.json and is mounted via hostPath
-# (see deployment.yaml). config.json.example documents its format.
+# The provider config (domains + Gandi token) is not in git; config.json.example
+# shows its format. The live copy is on the server at /mnt/main/config/ddns-updater.
 resources:
 - namespace.yaml
 - deployment.yaml
 - service.yaml
 - httproute.yaml
-# Google login via oauth2-proxy (AuthN) + per-app email allowlist (AuthZ); both
-# in istio-system, scoped to this host only.
-- authorizationpolicy.yaml
-- allowlist.yaml
+- authorizationpolicy.yaml  # Google login (oauth2-proxy)
+- allowlist.yaml            # which accounts may use this host

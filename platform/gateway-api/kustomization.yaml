@@ -1,14 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-# Gateway API CRDs — platform app deployed by Argo CD. EXPERIMENTAL channel
-# because the Plex passthrough needs TCPRoute (v1alpha2), which the standard
-# channel omits. Pulled straight from the pinned upstream release (kustomize
-# fetches the URL in Argo CD's repo-server); the CRDs are too large for
-# client-side apply, hence ServerSideApply on the platform ApplicationSet.
-#
-# Everything that speaks Gateway API (Istio's GatewayClass, the shared Gateway in
-# ../gateway/, every app's HTTPRoute, Argo CD's own route) retries until these
-# exist — no ordering is scripted.
+# Gateway API CRDs, experimental channel (TCPRoute for the Plex passthrough).
+# Too large for client-side apply: the platform ApplicationSet uses ServerSideApply.
 resources:
 - https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.4.0/experimental-install.yaml

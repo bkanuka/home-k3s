@@ -3,29 +3,10 @@ kind: Kustomization
 
 namespace: argocd
 
-# Everything Argo CD manages for ITSELF after bootstrap (the self-managing
-# Application in apps/ points at this directory):
-#   base/  — the Argo CD install + config
-#   apps/  — the ApplicationSets (platform/*, applications/*) + that Application
-#   httproute.yaml — exposes it at argocd.home.bkanuka.com through the shared
-#   gateway; kept out of base/ because the Gateway API CRDs come from the
-#   platform/gateway-api app (Argo CD retries this until they exist)
-#   the GitHub webhook HMAC key + Google OIDC client as a PATCH-mode SealedSecret
-#   — the controller adds only those keys to the server-managed argocd-secret
-#   (preserving server.secretkey, admin.password, tls.*) and never owns/deletes
-#   it. Patch mode is enabled by the annotation on the LIVE Secret, set by
-#   the argocd-secret patch in base/kustomization.yaml (the controller ignores annotations on the
-#   SealedSecret itself). Regenerate
-#   with `platform/sealed-secrets/seal.sh argocd/argocd-secret.yaml` from the
-#   git-ignored plaintext argocd-secret.yaml (template: argocd-secret.yaml.example).
-#
-# install.sh applies base/ and apps/ separately (`kubectl apply -k`) rather than
-# this file, because on a first-ever install the SealedSecret below doesn't exist
-# yet — it can only be sealed once the sealed-secrets controller (deployed by the
-# platform ApplicationSet) is running. Until it is committed, the `argocd`
-# Application shows a build error; everything else proceeds.
+# Everything Argo CD manages for itself after bootstrap; the self-managing
+# Application in apps/ points at this directory.
 resources:
 - base/
 - apps/
-- httproute.yaml
-- argocd-secret-sealed.yaml
+- httproute.yaml             # needs the Gateway API CRDs from platform/gateway-api
+- argocd-secret-sealed.yaml  # GitHub webhook key + Google OIDC client, patched into argocd-secret

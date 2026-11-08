@@ -1,55 +1,35 @@
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
-  # Shared gateway for ALL services in the cluster (Plex, Sonarr, Radarr, ...).
-  # Every app routes through this one Gateway by pointing its HTTPRoute's
-  # parentRef here — there is only one LoadBalancer IP for the whole cluster.
-  name: home-gateway
+  name: home-gateway  # the one shared Gateway; every app's HTTPRoute attaches here
   namespace: istio-system
   annotations:
-    # cert-manager watches this Gateway and, for every HTTPS listener that has a
-    # hostname + tls.certificateRefs, issues a Let's Encrypt cert into the named
-    # Secret (via DNS-01 through the Gandi webhook). See ../cert-manager/.
-    cert-manager.io/cluster-issuer: letsencrypt
+    cert-manager.io/cluster-issuer: letsencrypt  # cert-manager issues certs for the HTTPS listeners below
 spec:
-  # Istio registers the "istio" GatewayClass; it creates a LoadBalancer Service
-  # in istio-system which MetalLB will assign an IP to.
   gatewayClassName: istio
   listeners:
-  # HTTP :80 — kept for HTTP->HTTPS redirects (certs use DNS-01, so :80 is not
-  # needed for issuance). Apps should redirect to HTTPS (see plex).
-  - name: http
+  - name: http  # only serves HTTP->HTTPS redirects
     protocol: HTTP
     port: 80
     allowedRoutes:
-      # Allow HTTPRoutes from any namespace to attach to this shared gateway.
       namespaces:
         from: All
-  # HTTPS :443 — TLS terminated at the gateway. The WILDCARD listener covers every
-  # service subdomain (plex.home.bkanuka.com, sonarr.home.bkanuka.com, ...); the
-  # apex listener below covers the bare home.bkanuka.com (wildcards do NOT match
-  # the apex). Both listeners reference the SAME Secret, so cert-manager issues
-  # ONE cert whose SANs are the union of the listener hostnames — i.e.
-  # `*.home.bkanuka.com` AND `home.bkanuka.com` — via DNS-01 (Gandi webhook).
+  # The wildcard and apex listeners share one Secret, so cert-manager issues a
+  # single cert with both SANs (a wildcard does not match the apex).
   - name: https
     protocol: HTTPS
     port: 443
     hostname: "*.home.bkanuka.com"
     tls:
       mode: Terminate
-      # cert-manager creates/populates this Secret from the listener hostnames.
       certificateRefs:
-      - group: ""      # explicit: the CRD defaults these, and Argo CD (server-side
-        kind: Secret   # apply) would otherwise report the defaulting as drift
+      - group: ""  # explicit: avoids Argo CD drift
+        kind: Secret
         name: wildcard-home-bkanuka-tls
     allowedRoutes:
       namespaces:
         from: All
-  # HTTPS :443 for the apex home.bkanuka.com. Distinguished from the wildcard
-  # listener by SNI. Shares the wildcard-home-bkanuka-tls Secret so the apex is
-  # added as an extra SAN on the same cert (no second cert/Secret). Reserved for
-  # future use — no HTTPRoute needs to attach here yet for the cert to be issued.
-  - name: https-apex
+  - name: https-apex  # bare home.bkanuka.com; nothing routes here yet
     protocol: HTTPS
     port: 443
     hostname: "home.bkanuka.com"
@@ -62,13 +42,8 @@ spec:
     allowedRoutes:
       namespaces:
         from: All
-  # TCP :32400 — raw passthrough for Plex's built-in Remote Access. Plex terminates
-  # its OWN TLS on this port (its *.plex.direct cert), so this must be an L4 TCP
-  # listener, NOT the L7 HTTPS listeners above (which terminate TLS with the
-  # wildcard cert). Istio adds 32400 to the gateway's LoadBalancer Service, so
-  # MetalLB serves it on the SAME 192.168.1.200 — no extra IP. A TCPRoute in the
-  # plex namespace (applications/plex/tcproute.yaml) forwards it to plex:32400.
-  # Requires WAN TCP 32400 forwarded to 192.168.1.200.
+  # Plex Remote Access passthrough: Plex terminates its own TLS, so this is L4 TCP.
+  # Routed by applications/plex/tcproute.yaml; needs WAN 32400 forwarded to 192.168.1.200.
   - name: plex-pms
     protocol: TCP
     port: 32400

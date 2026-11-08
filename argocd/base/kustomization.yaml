@@ -3,48 +3,27 @@ kind: Kustomization
 
 namespace: argocd
 
-# Argo CD itself — the part install.sh can apply on a bare k3s with nothing but
-# `kubectl apply -k` (no Helm, no SealedSecrets, no CRDs beyond Argo CD's own):
-#   - the upstream install manifest (pinned version)
-#   - insecure config (patched into argocd-cmd-params-cm)
-#   - OIDC SSO via Google + email RBAC + `--enable-helm` for kustomize
-#     (argocd-cm, argocd-rbac-cm)
-# NOT the HTTPRoute: it needs the Gateway API CRDs, which Argo CD itself installs
-# (platform/gateway-api), so it lives in ../ and is applied by the self-managing
-# Application once they exist. ../apps/ holds the ApplicationSets + that
-# Application; ../ ties base + apps + route + the sealed webhook secret together
-# as what Argo CD manages for itself after bootstrap.
+# Argo CD itself: what install.sh applies on a bare k3s with `kubectl apply -k`.
 resources:
 - namespace.yaml
 - https://raw.githubusercontent.com/argoproj/argo-cd/v3.4.5/manifests/install.yaml
 
 patches:
-# Serve Argo CD over plain HTTP behind the gateway (insecure mode).
-# Merged into the upstream argocd-cmd-params-cm, leaving its other keys intact.
-- path: cmd-params-patch.yaml
+- path: cmd-params-patch.yaml  # server.insecure: plain HTTP behind the gateway
   target:
     kind: ConfigMap
     name: argocd-cmd-params-cm
-# OIDC SSO via Google (url + oidc.config) + kustomize build options, merged
-# into argocd-cm.
-- path: cm-patch.yaml
+- path: cm-patch.yaml  # Google OIDC SSO + kustomize --enable-helm
   target:
     kind: ConfigMap
     name: argocd-cm
-# RBAC: listed Google accounts (email claim) -> Argo CD admin, merged into argocd-rbac-cm.
-- path: rbac-patch.yaml
+- path: rbac-patch.yaml  # which Google accounts are admin
   target:
     kind: ConfigMap
     name: argocd-rbac-cm
-# Let the sealed webhook/OIDC keys be PATCHED into the upstream (empty)
-# argocd-secret. The Sealed Secrets controller only patches an existing Secret
-# if the LIVE Secret carries this annotation — it ignores annotations on the
-# SealedSecret (../argocd-secret-sealed.yaml) and its template. Without it,
-# unsealing fails with "already exists and is not managed by SealedSecret";
-# with it, only the sealed keys are added and server.secretkey / admin.password /
-# tls.* are left alone (no `managed` annotation, so it never takes ownership).
-# Inline JSON patch rather than a `kind: Secret` patch file, which the
-# pre-commit hook would (rightly) refuse to commit.
+# Lets ../argocd-secret-sealed.yaml add keys to the upstream argocd-secret without
+# owning it. The live Secret must carry the patch annotation — the controller
+# ignores it on the SealedSecret.
 - target:
     kind: Secret
     name: argocd-secret

@@ -1,18 +1,13 @@
+# One Application per applications/<name>/, each served at <name>.home.bkanuka.com.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
   name: applications
   namespace: argocd
-  # One Application per applications/<name>/ — user-facing services, each at
-  # <name>.home.bkanuka.com. Cluster plumbing lives in platform/* (see
-  # applicationset-platform.yaml).
 spec:
   goTemplate: true
   goTemplateOptions: ["missingkey=error"]
   generators:
-  # Scan the repo for every subdirectory under applications/ and create one
-  # Argo CD Application per directory. Drop a new folder in applications/,
-  # push, and Argo CD deploys it automatically — no changes here needed.
   - git:
       repoURL: https://github.com/bkanuka/home-k3s.git
       revision: main
@@ -20,12 +15,9 @@ spec:
       - path: applications/*
   template:
     metadata:
-      # Application named after the folder, e.g. applications/httpbin -> "httpbin"
       name: '{{.path.basename}}'
       annotations:
-        # Show a link in the Argo CD UI to the service's host on the shared
-        # gateway, e.g. the "httpbin" app links to https://httpbin.home.bkanuka.com
-        # (uniform host-based routing for every app).
+        # "Open application" link in the Argo CD UI.
         link.argocd.argoproj.io/external-link: 'https://{{.path.basename}}.home.bkanuka.com'
     spec:
       project: default
@@ -36,7 +28,6 @@ spec:
       destination:
         server: https://kubernetes.default.svc
       syncPolicy:
-        # GitOps: continuously reconcile the cluster to match git.
         automated:
           prune: true      # delete resources removed from git
           selfHeal: true   # revert manual drift back to git state

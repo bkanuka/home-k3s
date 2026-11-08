@@ -1,3 +1,5 @@
+# One Application per platform/<name>/: cluster-level pieces (Gateway API CRDs,
+# MetalLB, Istio, GPU plugin, sealed-secrets, cert-manager, the shared gateway).
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -6,10 +8,6 @@ metadata:
 spec:
   goTemplate: true
   goTemplateOptions: ["missingkey=error"]
-  # One Application per platform/<name>/ directory: every cluster-level piece
-  # that is not a user-facing app — Gateway API CRDs, MetalLB, Istio, the GPU
-  # plugin, sealed-secrets, cert-manager (+ Gandi webhook + ClusterIssuers), the
-  # shared gateway. Only k3s itself and Argo CD's own install sit outside Argo CD.
   generators:
   - git:
       repoURL: https://github.com/bkanuka/home-k3s.git
@@ -33,36 +31,19 @@ spec:
           selfHeal: true   # revert manual drift back to git state
         syncOptions:
         - CreateNamespace=true
-        # Helm-inflated charts carry CRDs too large for client-side apply.
-        - ServerSideApply=true
-        # With SSA there is no last-applied annotation, so Argo CD's default
-        # (client-side) diff can't tell API-server defaulting from drift: every
-        # Gateway API object came up permanently OutOfSync on fields the CRDs
-        # default (backendRefs group/kind, certificateRefs group/kind, ...).
-        # ServerSideDiff dry-run-applies the manifest and compares the result —
-        # defaults included — so only real differences count.
-        - ServerSideDiff=true
-        # These apps create CRs for CRDs that arrive in the same sync (cert-manager
-        # Issuer/Certificate, SealedSecret) or from a sibling app (Gateway needs
-        # gateway-api): don't fail the dry-run on a kind the API server doesn't
-        # know yet.
-        - SkipDryRunOnMissingResource=true
-        # Honour ignoreDifferences below during sync too, so selfHeal doesn't
-        # revert fields other controllers own.
-        - RespectIgnoreDifferences=true
-        # Cross-app ordering is by retry, not by waves: e.g. cert-manager's
-        # SealedSecret can't apply until the sealed-secrets app has installed the
-        # CRD, the Gateway needs the CRDs and Istio's GatewayClass. Keep retrying.
+        - ServerSideApply=true  # Helm-inflated CRDs exceed the client-side annotation limit
+        - ServerSideDiff=true  # without it, API-server-defaulted fields show as permanent drift
+        - SkipDryRunOnMissingResource=true  # CRs whose CRDs arrive in the same or a sibling sync
+        - RespectIgnoreDifferences=true  # apply ignoreDifferences during sync, not only diff
+        # Cross-app ordering is by retry: keep going until sibling apps' CRDs exist.
         retry:
           limit: -1
           backoff:
             duration: 10s
             factor: 2
             maxDuration: 3m
-      # Webhook configs whose caBundle (and, for istiod, failurePolicy) is
-      # rewritten at runtime by the component itself — istiod, MetalLB's
-      # controller, cert-manager's cainjector. Without this Argo CD would see
-      # permanent drift and selfHeal would fight the controller.
+      # caBundle (and istiod's failurePolicy) are rewritten at runtime by istiod,
+      # MetalLB and cert-manager's cainjector.
       ignoreDifferences:
       - group: admissionregistration.k8s.io
         kind: ValidatingWebhookConfiguration

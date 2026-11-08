@@ -1,17 +1,8 @@
-# Strategic-merge patch: adds these keys to the upstream argocd-cmd-params-cm
-# (does not replace it — its other keys are left intact). argocd-server reads
-# these via env vars, so a fresh pod picks them up; changing them later needs an
-# argocd-server restart to take effect.
+# Merged into the upstream argocd-cmd-params-cm. argocd-server reads these at
+# start: after a change, `kubectl rollout restart deploy/argocd-server -n argocd`.
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: argocd-cmd-params-cm
 data:
-  # Serve plain HTTP (no self-signed TLS): the Istio gateway fronts Argo CD on
-  # its HTTP :80 listener and talks to argocd-server's http port.
-  server.insecure: "true"
-  # Argo CD now lives at its own host root (argocd.home.bkanuka.com), so the
-  # /argocd subpath settings (server.rootpath/basehref) were removed. Argo CD's
-  # self-managing Application uses server-side apply, so dropping them here prunes
-  # them from the live ConfigMap — but argocd-server must be restarted to pick up
-  # the change (kubectl rollout restart deploy/argocd-server -n argocd).
+  server.insecure: "true"  # plain HTTP; the Istio gateway terminates TLS

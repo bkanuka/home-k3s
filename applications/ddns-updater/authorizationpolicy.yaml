@@ -1,17 +1,9 @@
-# AuthN: require Google login on ddns-updater.home.bkanuka.com via oauth2-proxy forward-auth.
-# Lives in istio-system (the gateway's namespace) but is owned by this app so
-# auth config stays co-located with the service it protects.
-#
-# action: CUSTOM sends matching requests to the `oauth2-proxy` extensionProvider
-# (platform/istio meshConfig -> oauth2-proxy's ext_authz endpoint). Unauthenticated
-# -> 302 to Google; authenticated -> allowed, with x-auth-request-email set.
-# Scoped to this host so every OTHER service on the shared gateway stays open.
-# WHO may use the app is a separate, per-app DENY policy: see allowlist.yaml.
+# Requires Google login (oauth2-proxy) on this host.
 apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
 metadata:
   name: ddns-updater-ext-authz
-  namespace: istio-system
+  namespace: istio-system  # must match the Gateway's namespace
 spec:
   targetRefs:
   - group: gateway.networking.k8s.io
@@ -19,7 +11,7 @@ spec:
     name: home-gateway
   action: CUSTOM
   provider:
-    name: oauth2-proxy
+    name: oauth2-proxy  # extensionProvider in the Istio meshConfig
   rules:
   - to:
     - operation:

@@ -1,22 +1,10 @@
 #!/bin/bash
-# pre-commit: refuse to commit plaintext Kubernetes Secrets or private keys.
-#
-# Every secret in this repo must be a SealedSecret (see platform/sealed-secrets/). The
-# plaintext Secret sits next to its *-sealed.yaml in the app dir and is kept out
-# by .gitignore; this hook is the backstop. It inspects the STAGED content (index,
-# not working tree) of the files added or changed in this commit and aborts if
-# any is:
-#   1. a plain Secret manifest — any YAML/JSON document with `kind: Secret`,
-#      parsed with yq (so quoting, flow style and multi-doc files are handled).
-#      `SealedSecret` is a different kind and passes. The *.yaml.example
-#      templates aren't YAML files by extension and are not scanned.
-#   2. a private key — any `-----BEGIN ... PRIVATE KEY-----` block in any staged
-#      file (this catches the Sealed Secrets sealing-key backup, which is a
-#      kubernetes.io/tls Secret, even if renamed past .gitignore). pub-cert.pem is
-#      a CERTIFICATE block and passes.
-#
-# Requires mikefarah/yq v4 (https://github.com/mikefarah/yq). The hook fails
-# closed — missing yq, unparseable YAML or a git error all block the commit.
+# pre-commit: refuses to commit plaintext Kubernetes Secrets or private keys.
+# Checks the STAGED content of this commit and blocks it if any file is:
+#   1. a `kind: Secret` document in a staged *.yaml/*.yml/*.json (parsed with yq;
+#      SealedSecret passes, *.yaml.example templates are not scanned)
+#   2. a `-----BEGIN ... PRIVATE KEY-----` block in any staged file
+# Fails closed: missing yq, unparseable YAML or a git error all block the commit.
 #
 # Enable once per clone:   git config core.hooksPath .githooks
 # Bypass (don't):          git commit --no-verify
@@ -24,7 +12,7 @@ set -euo pipefail
 
 PRIVATE_KEY='-----BEGIN( RSA| EC| DSA| OPENSSH| ENCRYPTED| PGP)? PRIVATE KEY'
 
-# The unrelated Python "yq" (a jq wrapper) has a different CLI; require mikefarah's.
+# The Python "yq" has a different CLI; require mikefarah's v4.
 if ! yq --version 2>/dev/null | grep -q mikefarah; then
     echo "✗ pre-commit: mikefarah/yq v4 not found on PATH (needed to parse staged manifests)." >&2
     echo "  Install it: https://github.com/mikefarah/yq#install" >&2
@@ -34,10 +22,8 @@ fi
 fail=0
 
 # ── 1. plain Secret manifests ────────────────────────────────────────────────
-# Staged (added/copied/modified/renamed) YAML/JSON files, read from the index
-# with `git show :path` so unstaged edits don't affect the result. The yq
-# expression is true if ANY document in the file (or any item of a `kind: List`)
-# is a mapping with kind == Secret; scalar/sequence/empty docs are ignored.
+# Reads from the index (`git show :path`) so unstaged edits don't affect the result.
+# True if any mapping document (or any item of a `kind: List`) has kind == Secret.
 IS_SECRET='[.] | map(select(tag == "!!map")) | map(.kind, .items[]?.kind) | flatten | any_c(. == "Secret")'
 plain=()
 while IFS= read -r -d '' f; do
@@ -57,8 +43,7 @@ if [ "${#plain[@]}" -gt 0 ]; then
 fi
 
 # ── 2. private keys ──────────────────────────────────────────────────────────
-# A text pattern, not YAML, so grep the index directly. -I skips binaries. git
-# grep exits 1 for "no match" (fine) and >1 for a real error — fail closed.
+# git grep exits 1 for "no match" and >1 for a real error.
 rc=0
 keys="$(git grep --cached -I -l -E -e "$PRIVATE_KEY")" || rc=$?
 if [ "$rc" -gt 1 ]; then

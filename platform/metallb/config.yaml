@@ -1,7 +1,5 @@
-# Single fixed IP for the whole cluster. There is exactly one LoadBalancer
-# service (the shared home-gateway), so the pool is pinned to one address:
-# the gateway always gets 192.168.1.200. This is the IP the router forwards
-# 80/443 to. Must be unused on the LAN and outside the router's DHCP range.
+# One fixed IP for the shared gateway's LoadBalancer; the router forwards 80/443
+# to it. Must be unused on the LAN and outside the router's DHCP range.
 apiVersion: metallb.io/v1beta1
 kind: IPAddressPool
 metadata:

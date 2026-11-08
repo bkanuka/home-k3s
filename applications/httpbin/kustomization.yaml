@@ -5,9 +5,6 @@ resources:
 - namespace.yaml
 - deployment.yaml
 - service.yaml
-# NOTE: the shared Gateway is a platform app (platform/gateway), not part of this app.
 - httproute.yaml
-# Google login via oauth2-proxy (AuthN) + per-app email allowlist (AuthZ); both
-# in istio-system, scoped to this host only.
-- authorizationpolicy.yaml
-- allowlist.yaml
+- authorizationpolicy.yaml  # Google login (oauth2-proxy)
+- allowlist.yaml            # which accounts may use this host

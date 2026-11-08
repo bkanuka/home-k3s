@@ -1,7 +1,4 @@
-# oauth2-proxy (pinned). Stateless — sessions live in the (encrypted) cookie, so
-# no Redis. Config comes from the generated oauth2-proxy-config ConfigMap
-# (kustomization.yaml) + the sealed oauth2-proxy-secret (Google client id/secret,
-# cookie secret).
+# oauth2-proxy: stateless, sessions live in the encrypted cookie (no Redis).
 apiVersion: apps/v1
 kind: Deployment
 metadata:

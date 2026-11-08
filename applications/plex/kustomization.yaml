@@ -5,7 +5,5 @@ resources:
 - namespace.yaml
 - deployment.yaml
 - service.yaml
-# NOTE: the shared Gateway is a core service (see /gateway), not part of this app.
 - httproute.yaml
-# Raw TCP passthrough on :32400 for Plex's built-in Remote Access (see file).
-- tcproute.yaml
+- tcproute.yaml  # Plex Remote Access passthrough on :32400

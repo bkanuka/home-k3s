@@ -1,9 +1,5 @@
-# The dedicated auth host: Google's single redirect URI
-# (https://auth.home.bkanuka.com/oauth2/callback) lands here, as do
-# /oauth2/sign_out and /oauth2/userinfo. Deliberately NOT behind any
-# AuthorizationPolicy — the callback has to be reachable while unauthenticated.
-# Because the session cookie is scoped to .home.bkanuka.com, no protected app
-# needs its own copy of these paths.
+# auth.home.bkanuka.com: Google's redirect URI (/oauth2/callback), sign_out and userinfo.
+# Must NOT sit behind an AuthorizationPolicy: the callback is reached unauthenticated.
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
@@ -24,8 +20,8 @@ spec:
         type: PathPrefix
         value: /
     backendRefs:
-    - group: ""      # explicit: CRD defaults, spelled out so Argo CD (server-side
-      kind: Service  # apply) doesn't report the defaulting as drift
+    - group: ""  # explicit: avoids Argo CD drift
+      kind: Service
       name: oauth2-proxy
       port: 4180
       weight: 1
@@ -45,8 +41,7 @@ spec:
   hostnames:
   - auth.home.bkanuka.com
   rules:
-  # explicit: the CRD defaults a catch-all match when none is given; spelled out
-  # so Argo CD (server-side apply) doesn't report the defaulting as drift
+  # explicit: avoids Argo CD drift
   - matches:
     - path:
         type: PathPrefix

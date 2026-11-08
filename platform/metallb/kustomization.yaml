@@ -1,11 +1,8 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-# MetalLB — bare-metal LoadBalancer (replaces k3s's ServiceLB, disabled in
-# k3s-config.yaml). Platform app deployed by Argo CD from the upstream "native"
-# manifest (L2 mode, no FRR/BGP). The IP pool + L2Advertisement in config.yaml
-# are sync wave 1 so MetalLB (and the validating webhook its controller serves)
-# is healthy before they are applied.
+# MetalLB in L2 mode (replaces k3s's ServiceLB, disabled in k3s-config.yaml).
+# config.yaml is sync wave 1 so MetalLB's validating webhook is up before it applies.
 resources:
 - https://raw.githubusercontent.com/metallb/metallb/v0.16.0/config/manifests/metallb-native.yaml
 - config.yaml

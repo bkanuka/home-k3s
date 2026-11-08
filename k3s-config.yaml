@@ -1,13 +1,6 @@
-# k3s server configuration — installed to /etc/rancher/k3s/config.yaml by
-# install.sh (every run, so edits here reach the host on the next run; k3s reads
-# it on start, so `sudo systemctl restart k3s` after changing an existing node).
-#
-# Bundled components we replace are disabled here; their replacements are Argo
-# CD platform apps (platform/istio, platform/metallb):
-#   traefik   -> Istio ingress (Gateway API)
-#   servicelb -> MetalLB
+# k3s server config; install.sh copies it to /etc/rancher/k3s/config.yaml. k3s
+# reads it only at start, so restart k3s after changing it on a live node.
 disable:
-  - traefik
-  - servicelb
-# Make the kubeconfig readable without sudo (single-user home server).
-write-kubeconfig-mode: "0644"
+  - traefik    # replaced by Istio ingress (platform/istio)
+  - servicelb  # replaced by MetalLB (platform/metallb)
+write-kubeconfig-mode: "0644"  # kubeconfig readable without sudo

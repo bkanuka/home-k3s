@@ -4,4 +4,5 @@ kind: Kustomization
 # The single shared Gateway used by every service in the cluster.
 resources:
 - gateway.yaml
-- telemetry.yaml  # access log
+- certificate.yaml  # TLS for the https listener
+- telemetry.yaml    # access log

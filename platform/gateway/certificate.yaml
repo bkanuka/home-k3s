@@ -1,0 +1,17 @@
+# The gateway's TLS cert: wildcard plus the bare apex (a wildcard does not match
+# the apex). Managed here rather than by cert-manager's Gateway annotation, which
+# only works with per-listener hostnames.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-home-bkanuka-tls
+  namespace: istio-system
+spec:
+  secretName: wildcard-home-bkanuka-tls
+  dnsNames:
+  - "*.home.bkanuka.com"
+  - home.bkanuka.com
+  issuerRef:
+    group: cert-manager.io
+    kind: ClusterIssuer
+    name: letsencrypt

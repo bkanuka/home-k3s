@@ -1,5 +1,5 @@
-# The dashboard at home.bkanuka.com (the gateway's apex listener) and
-# homepage.home.bkanuka.com; Google login is enforced by authorizationpolicy.yaml.
+# The dashboard at home.bkanuka.com and homepage.home.bkanuka.com; Google login is
+# enforced by authorizationpolicy.yaml.
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
@@ -7,11 +7,6 @@ metadata:
   namespace: homepage
 spec:
   parentRefs:
-  - group: gateway.networking.k8s.io
-    name: home-gateway
-    namespace: istio-system
-    kind: Gateway
-    sectionName: https-apex
   - group: gateway.networking.k8s.io
     name: home-gateway
     namespace: istio-system

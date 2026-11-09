@@ -3,8 +3,6 @@ kind: Gateway
 metadata:
   name: home-gateway  # the one shared Gateway; every app's HTTPRoute attaches here
   namespace: istio-system
-  annotations:
-    cert-manager.io/cluster-issuer: letsencrypt  # cert-manager issues certs for the HTTPS listeners below
 spec:
   gatewayClassName: istio
   listeners:
@@ -14,29 +12,17 @@ spec:
     allowedRoutes:
       namespaces:
         from: All
-  # The wildcard and apex listeners share one Secret, so cert-manager issues a
-  # single cert with both SANs (a wildcard does not match the apex).
+  # One HTTPS listener for every host (no hostname = one Envoy filter chain). Separate
+  # wildcard/apex listeners were separate chains, and browsers that coalesce HTTP/2
+  # connections across hosts sharing the cert and IP then hit the wrong chain (no
+  # route, no login check). The cert comes from certificate.yaml.
   - name: https
     protocol: HTTPS
     port: 443
-    hostname: "*.home.bkanuka.com"
     tls:
       mode: Terminate
       certificateRefs:
       - group: ""  # explicit: avoids Argo CD drift
-        kind: Secret
-        name: wildcard-home-bkanuka-tls
-    allowedRoutes:
-      namespaces:
-        from: All
-  - name: https-apex  # bare home.bkanuka.com; nothing routes here yet
-    protocol: HTTPS
-    port: 443
-    hostname: "home.bkanuka.com"
-    tls:
-      mode: Terminate
-      certificateRefs:
-      - group: ""
         kind: Secret
         name: wildcard-home-bkanuka-tls
     allowedRoutes:

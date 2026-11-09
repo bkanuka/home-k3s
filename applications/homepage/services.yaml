@@ -117,11 +117,10 @@
         href: https://argocd.home.bkanuka.com
         description: GitOps
         siteMonitor: http://argocd-server.argocd.svc.cluster.local:80
-        # Needs an Argo CD API token: add HOMEPAGE_VAR_ARGOCD_TOKEN, then:
-        # widget:
-        #   type: argocd
-        #   url: http://argocd-server.argocd.svc.cluster.local:80
-        #   key: "{{HOMEPAGE_VAR_ARGOCD_TOKEN}}"
+        widget:
+          type: argocd
+          url: http://argocd-server.argocd.svc.cluster.local:80
+          key: "{{HOMEPAGE_VAR_ARGOCD_TOKEN}}"  # token of the "readonly" account (argocd/base/cm-patch.yaml)
     - ddns-updater:
         icon: ddns-updater.png
         href: https://ddns-updater.home.bkanuka.com

@@ -98,7 +98,7 @@ Nothing here blocks the cluster; these are UI/external changes only the user can
       and `/mnt/main/config/{heimdall,oauth2-proxy}`; `apt remove nginx`.
 - [ ] **Homepage widgets needing your credentials** (stubs in
       `applications/homepage/services.yaml`): qBittorrent WebUI password, Home
-      Assistant long-lived token, TrueNAS API key, Argo CD API token — add to
+      Assistant long-lived token, TrueNAS API key — add to
       the secret (see `.yaml.example`), reseal, uncomment the widget.
 
 Decisions for step 6: no UniFi route (use 192.168.1.1 directly), no legacy

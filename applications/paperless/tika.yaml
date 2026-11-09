@@ -1,0 +1,82 @@
+# Gotenberg + Tika: office/HTML document conversion for Paperless. Stateless.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gotenberg
+  namespace: paperless
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gotenberg
+  template:
+    metadata:
+      labels:
+        app: gotenberg
+    spec:
+      containers:
+      - name: gotenberg
+        image: gotenberg/gotenberg:7.10
+        args:
+        - gotenberg
+        - --chromium-disable-javascript=true
+        - --chromium-allow-list=file:///tmp/.*
+        ports:
+        - name: http
+          containerPort: 3000
+        resources:
+          requests:
+            cpu: 50m
+            memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gotenberg
+  namespace: paperless
+spec:
+  selector:
+    app: gotenberg
+  ports:
+  - name: http
+    port: 3000
+    targetPort: 3000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tika
+  namespace: paperless
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tika
+  template:
+    metadata:
+      labels:
+        app: tika
+    spec:
+      containers:
+      - name: tika
+        image: ghcr.io/paperless-ngx/tika:latest
+        ports:
+        - name: http
+          containerPort: 9998
+        resources:
+          requests:
+            cpu: 50m
+            memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tika
+  namespace: paperless
+spec:
+  selector:
+    app: tika
+  ports:
+  - name: http
+    port: 9998
+    targetPort: 9998

@@ -1,0 +1,45 @@
+# Tautulli at tautulli.home.bkanuka.com; Google login is enforced at the gateway by authorizationpolicy.yaml.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: tautulli
+  namespace: tautulli
+spec:
+  parentRefs:
+  - group: gateway.networking.k8s.io
+    name: home-gateway
+    namespace: istio-system
+    kind: Gateway
+    sectionName: https
+  hostnames:
+  - tautulli.home.bkanuka.com
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /
+    backendRefs:
+    - name: tautulli
+      port: 8181
+      weight: 1
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: tautulli-https-redirect
+  namespace: tautulli
+spec:
+  parentRefs:
+  - group: gateway.networking.k8s.io
+    name: home-gateway
+    namespace: istio-system
+    kind: Gateway
+    sectionName: http
+  hostnames:
+  - tautulli.home.bkanuka.com
+  rules:
+  - filters:
+    - type: RequestRedirect
+      requestRedirect:
+        scheme: https
+        statusCode: 301

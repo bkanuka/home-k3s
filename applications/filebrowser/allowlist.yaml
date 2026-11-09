@@ -1,0 +1,26 @@
+# Denies this host to anyone whose Google account is not listed below; the same paths are exempt as in authorizationpolicy.yaml.
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: filebrowser-allowlist
+  namespace: istio-system  # must match the Gateway's namespace
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: Gateway
+    name: home-gateway
+  action: DENY
+  rules:
+  - to:
+    - operation:
+        hosts:
+        - filebrowser.home.bkanuka.com
+        ports:
+        - "443"  # HTTPS only; a DENY with just HTTP fields would also drop the Plex TCP listener
+        notPaths:
+        - /share/*
+        - /api/public/*
+    when:
+    - key: request.headers[x-auth-request-email]  # set by oauth2-proxy (ext_authz)
+      notValues:  # also matches when the header is absent
+      - bkanuka@gmail.com

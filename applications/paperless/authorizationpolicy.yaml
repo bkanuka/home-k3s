@@ -1,0 +1,21 @@
+# Requires Google login (oauth2-proxy) on this host, except the API (Paperless checks its own token/basic auth there).
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: paperless-ext-authz
+  namespace: istio-system  # must match the Gateway's namespace
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: Gateway
+    name: home-gateway
+  action: CUSTOM
+  provider:
+    name: oauth2-proxy  # extensionProvider in the Istio meshConfig
+  rules:
+  - to:
+    - operation:
+        hosts:
+        - paperless.home.bkanuka.com
+        notPaths:
+        - /api/*

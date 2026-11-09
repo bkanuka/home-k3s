@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# config.ini is UI-written (and full of tokens), so it stays on the hostPath; the
+# deployment's initContainer pins http_root and the Plex address on every start.
+resources:
+- namespace.yaml
+- deployment.yaml
+- service.yaml
+- httproute.yaml
+- authorizationpolicy.yaml  # Google login (oauth2-proxy)
+- allowlist.yaml            # which accounts may use this host

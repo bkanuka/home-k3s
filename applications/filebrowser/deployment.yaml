@@ -1,0 +1,81 @@
+# File Browser. database.db stays on the hostPath; settings come from env (the
+# official image runs as uid 1000). Browses the server's local pools and the
+# TrueNAS exports under /srv/mnt/*.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: filebrowser
+  namespace: filebrowser
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate  # database.db hostPath can't be shared by two pods
+  selector:
+    matchLabels:
+      app: filebrowser
+  template:
+    metadata:
+      labels:
+        app: filebrowser
+    spec:
+      containers:
+      - name: filebrowser
+        image: filebrowser/filebrowser:latest
+        env:
+        - name: FB_DATABASE
+          value: /etc/filebrowser/database.db
+        - name: FB_ROOT
+          value: /srv
+        - name: TZ
+          value: America/Toronto
+        ports:
+        - name: http
+          containerPort: 80
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+        volumeMounts:
+        - name: config
+          mountPath: /etc/filebrowser
+        - name: main
+          mountPath: /srv/mnt/main
+        - name: stripe
+          mountPath: /srv/mnt/stripe
+        - name: working
+          mountPath: /srv/mnt/working
+        - name: media
+          mountPath: /srv/mnt/media
+        - name: nas
+          mountPath: /srv/mnt/nas
+        - name: backup
+          mountPath: /srv/mnt/backup
+      volumes:
+      - name: config
+        hostPath:
+          path: /mnt/main/config/filebrowser
+          type: Directory
+      - name: main  # local ZFS pool (app configs, compose files)
+        hostPath:
+          path: /mnt/main
+          type: Directory
+      - name: stripe  # local ZFS pool (Frigate recordings)
+        hostPath:
+          path: /mnt/stripe
+          type: Directory
+      - name: working
+        hostPath:
+          path: /mnt/working
+          type: Directory
+      - name: media  # TrueNAS exports
+        nfs:
+          server: 192.168.1.15
+          path: /mnt/main/media
+      - name: nas
+        nfs:
+          server: 192.168.1.15
+          path: /mnt/main/nas
+      - name: backup
+        nfs:
+          server: 192.168.1.15
+          path: /mnt/main/backup

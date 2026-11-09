@@ -1,0 +1,57 @@
+# Paperless-ngx web/worker. Config is the paperless-config ConfigMap (paperless.env)
+# plus the sealed paperless-secrets Secret. Index/classifier/export stay on the
+# hostPath; documents and the consume folder are on the TrueNAS "nas" export.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: paperless
+  namespace: paperless
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate  # hostPaths can't be shared by two pods
+  selector:
+    matchLabels:
+      app: paperless
+  template:
+    metadata:
+      labels:
+        app: paperless
+    spec:
+      containers:
+      - name: paperless
+        image: ghcr.io/paperless-ngx/paperless-ngx:latest
+        envFrom:
+        - configMapRef:
+            name: paperless-config
+        - secretRef:
+            name: paperless-secrets
+        ports:
+        - name: http
+          containerPort: 8000
+        resources:
+          requests:
+            cpu: 250m
+            memory: 1Gi
+        volumeMounts:
+        - name: config
+          mountPath: /usr/src/paperless/data
+          subPath: data
+        - name: config
+          mountPath: /usr/src/paperless/export
+          subPath: export
+        - name: nas
+          mountPath: /usr/src/paperless/media
+          subPath: paperless
+        - name: nas
+          mountPath: /usr/src/paperless/consume
+          subPath: paperless-consume
+      volumes:
+      - name: config
+        hostPath:
+          path: /mnt/main/config/paperless
+          type: Directory
+      - name: nas  # TrueNAS export
+        nfs:
+          server: 192.168.1.15
+          path: /mnt/main/nas

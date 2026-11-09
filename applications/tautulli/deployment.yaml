@@ -1,0 +1,67 @@
+# Tautulli. config.ini and tautulli.db are app-written and stay on the hostPath; the
+# fix-config initContainer pins the few settings that differ from the compose era
+# (no URL prefix, Plex via its cluster Service) on every start.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tautulli
+  namespace: tautulli
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate  # /config hostPath can't be shared by two pods
+  selector:
+    matchLabels:
+      app: tautulli
+  template:
+    metadata:
+      labels:
+        app: tautulli
+    spec:
+      initContainers:
+      - name: fix-config
+        image: busybox:1.37.0
+        command: ["sh", "-ec"]
+        args:
+        - |
+          sed -i \
+            -e 's|^http_root = .*|http_root = |' \
+            -e 's|^pms_ip = .*|pms_ip = plex.plex.svc.cluster.local|' \
+            -e 's|^pms_url = .*|pms_url = http://plex.plex.svc.cluster.local:32400|' \
+            -e 's|^pms_url_manual = .*|pms_url_manual = 1|' \
+            /config/config.ini
+        volumeMounts:
+        - name: config
+          mountPath: /config
+      containers:
+      - name: tautulli
+        image: lscr.io/linuxserver/tautulli:latest
+        env:
+        - name: PUID
+          value: "1000"
+        - name: PGID
+          value: "1000"
+        - name: TZ
+          value: America/Toronto
+        ports:
+        - name: http
+          containerPort: 8181
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+        volumeMounts:
+        - name: config
+          mountPath: /config
+        - name: plex-logs
+          mountPath: /plex-logs
+          readOnly: true
+      volumes:
+      - name: config
+        hostPath:
+          path: /mnt/main/config/tautulli
+          type: Directory
+      - name: plex-logs  # Plex's /config hostPath (applications/plex)
+        hostPath:
+          path: /mnt/main/config/plex/Library/Application Support/Logs
+          type: Directory

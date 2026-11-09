@@ -4,7 +4,7 @@ kind: Kustomization
 # ServerConfig.json is git-managed: edit it here, not in the Web UI (UI changes are
 # overwritten on the next start; the previous file is kept as ServerConfig.json.prev).
 # APIKey is the __JACKETT_API_KEY__ placeholder, filled from the sealed jackett-apikey
-# Secret. BasePathOverride=/jackett is transitional (compose Sonarr/Radarr use it). Plaintext secrets (from *.yaml.example) are git-ignored; seal them with
+# Secret. Plaintext secrets (from *.yaml.example) are git-ignored; seal them with
 # platform/sealed-secrets/seal.sh.
 resources:
 - namespace.yaml

@@ -54,9 +54,7 @@
         href: https://jackett.home.bkanuka.com
         description: Indexers
         siteMonitor: http://jackett.jackett.svc.cluster.local:9117/UI/Login
-        widget:
-          type: jackett
-          url: http://jackett.jackett.svc.cluster.local:9117
+        # No widget: it needs a Jackett admin password, which is not set.
 - Home:
     - Home Assistant:
         icon: home-assistant.png

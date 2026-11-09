@@ -83,7 +83,24 @@ stirling-pdf, tautulli.
       `plex.plex.svc.cluster.local:32400`. Radarr's Kodi notification to
       `osmc.home.bkanuka.com` 404s (pre-existing). Old `home.bkanuka.com/sonarr`
       and `/radarr` URLs are gone.
-- [ ] **4. tautulli, paperless, stirling-pdf, filebrowser** (independent)
+- [x] **4. tautulli, paperless, stirling-pdf, filebrowser** (2026-11-08) —
+      compose units were disabled *before* the push this time (two postmasters
+      on one pgdata would not see each other's lock). Gotchas hit:
+      - Paperless: `enableServiceLinks: false` is required — the `paperless`
+        Service injects `PAPERLESS_PORT=tcp://...`, which paperless-ngx reads
+        as its listen port. Images follow upstream's compose file
+        (`apache/tika:3.3.1.0` — the ghcr.io/paperless-ngx/tika image is gone —
+        `gotenberg:8.38`, `valkey:9-alpine`). Valkey can't read the Redis 7.4
+        dump; the old one is kept as `paperless/redis/dump.rdb.redis7`.
+        Postgres stays at **15** (upstream is 18): moving needs a dump/restore
+        of `pgdata`, a separate task. Paperless user renamed `bkanuka` →
+        `bkanuka@gmail.com` to match the email header.
+      - filebrowser: settings come from env; the DB's Base URL was already
+        empty, nothing to reset.
+      - **Leftover for the user**: Tautulli's stored Plex token is rejected
+        (401 via both the Service and 192.168.1.200) — re-authenticate in
+        Settings → Plex Media Server (address is pinned to
+        `plex.plex.svc.cluster.local:32400` by the initContainer).
 - [ ] **5. frigate**
 - [ ] **6. heimdall** as the `home.bkanuka.com` root → cut nginx over → retire
       nginx + compose oauth2-proxy. nginx also serves `unifi` (needs a k8s

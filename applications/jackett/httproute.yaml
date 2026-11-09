@@ -15,6 +15,19 @@ spec:
   hostnames:
   - jackett.home.bkanuka.com
   rules:
+  # Transitional: Jackett still serves under /jackett (BasePathOverride) because the
+  # compose Sonarr/Radarr use that path; both go away in step 3 of docs/compose-migration.md.
+  - matches:
+    - path:
+        type: Exact
+        value: /
+    filters:
+    - type: RequestRedirect
+      requestRedirect:
+        path:
+          type: ReplaceFullPath
+          replaceFullPath: /jackett/
+        statusCode: 302
   - matches:
     - path:
         type: PathPrefix

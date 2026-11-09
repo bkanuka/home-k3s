@@ -18,6 +18,7 @@ spec:
       labels:
         app: paperless
     spec:
+      enableServiceLinks: false  # the "paperless" Service would inject PAPERLESS_PORT=tcp://..., which paperless-ngx reads as its listen port
       containers:
       - name: paperless
         image: ghcr.io/paperless-ngx/paperless-ngx:latest

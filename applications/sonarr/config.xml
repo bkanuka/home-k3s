@@ -1,0 +1,20 @@
+<Config>
+  <LogLevel>Info</LogLevel>
+  <Port>8989</Port>
+  <UrlBase></UrlBase>
+  <BindAddress>*</BindAddress>
+  <SslPort>9898</SslPort>
+  <EnableSsl>False</EnableSsl>
+  <ApiKey>__SONARR_API_KEY__</ApiKey>
+  <AuthenticationMethod>External</AuthenticationMethod>
+  <Branch>main</Branch>
+  <LaunchBrowser>False</LaunchBrowser>
+  <UpdateMechanism>Docker</UpdateMechanism>
+  <UpdateAutomatically>False</UpdateAutomatically>
+  <AuthenticationRequired>DisabledForLocalAddresses</AuthenticationRequired>
+  <InstanceName>Sonarr</InstanceName>
+  <SslCertPath></SslCertPath>
+  <SslCertPassword></SslCertPassword>
+  <AllowedHosts></AllowedHosts>
+  <TrustedNetworks></TrustedNetworks>
+</Config>

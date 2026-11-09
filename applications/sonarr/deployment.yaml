@@ -1,0 +1,81 @@
+# Sonarr. config.xml is git-managed: the render-config initContainer writes the ConfigMap
+# copy over /config on every start. The sqlite databases stay on the hostPath.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sonarr
+  namespace: sonarr
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate  # /config hostPath can't be shared by two pods
+  selector:
+    matchLabels:
+      app: sonarr
+  template:
+    metadata:
+      labels:
+        app: sonarr
+    spec:
+      initContainers:
+      # Keeps the old config as .prev, writes the ConfigMap copy with the API key filled in.
+      - name: render-config
+        image: busybox:1.37.0
+        command: ["sh", "-ec"]
+        args:
+        - |
+          dst=/config/config.xml
+          [ ! -f "$dst" ] || cp -p "$dst" "$dst.prev"
+          sed "s|__SONARR_API_KEY__|$SONARR_API_KEY|" /seed/config.xml > "$dst.tmp"
+          chown 1000:1000 "$dst.tmp" && chmod 600 "$dst.tmp"
+          mv "$dst.tmp" "$dst"
+        env:
+        - name: SONARR_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: sonarr-apikey
+              key: SONARR_API_KEY
+        volumeMounts:
+        - name: config
+          mountPath: /config
+        - name: config-seed
+          mountPath: /seed
+          readOnly: true
+      containers:
+      - name: sonarr
+        image: lscr.io/linuxserver/sonarr:latest
+        env:
+        - name: PUID
+          value: "1000"
+        - name: PGID
+          value: "1000"
+        - name: TZ
+          value: America/Toronto
+        ports:
+        - name: http
+          containerPort: 8989
+        resources:
+          requests:
+            cpu: 100m
+            memory: 512Mi
+        volumeMounts:
+        - name: config
+          mountPath: /config
+        - name: media
+          mountPath: /downloads
+          subPath: Unsorted
+        - name: media
+          mountPath: /tv
+          subPath: TV
+      volumes:
+      - name: config
+        hostPath:
+          path: /mnt/main/config/sonarr
+          type: Directory
+      - name: media  # TrueNAS export
+        nfs:
+          server: 192.168.1.15
+          path: /mnt/main/media
+      - name: config-seed
+        configMap:
+          name: sonarr-config

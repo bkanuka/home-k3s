@@ -65,15 +65,27 @@ stirling-pdf, tautulli.
 - [x] **1. Cleanup** (2026-11-08) — dead projects `authentik`, `ombi`,
       `rtorrent`, `transmission-wiregaurd`, `httpbin` downed; compose
       `ddns-updater` unit disabled. Compose dirs left in place.
-- [ ] **2. flaresolverr → jackett** — `applications/jackett/` (flaresolverr lives
-      in the same namespace; only Jackett uses it). Jackett pod has a
-      transitional `hostPort: 9117` so the compose Sonarr/Radarr keep reaching
-      it at `192.168.1.10:9117` with the same API key; drop it in step 3.
-      No `/api` exemption at the gateway (Jackett has no admin password, so its
-      admin API would be open) — in-cluster consumers use the Service.
-      Cutover: `sudo systemctl disable --now docker-compose@jackett docker-compose@flaresolverr`
-- [ ] **3. radarr, sonarr** (download client → `qbittorrent.qbittorrent.svc:8888`
-      with API key; indexers → `jackett.jackett.svc:9117`)
+- [x] **2. flaresolverr → jackett** (2026-11-08) — `applications/jackett/`
+      (flaresolverr in the same namespace; only Jackett uses it). No `/api`
+      exemption at the gateway (Jackett has no admin password, so its admin API
+      would be open) — in-cluster consumers use the Service. **Transitional,
+      removed in step 3**: `hostPort: 9117` and `BasePathOverride: /jackett`
+      (+ the `/` → `/jackett/` redirect in httproute.yaml), because the compose
+      Sonarr/Radarr call `192.168.1.10:9117/jackett/...`.
+- [ ] **3. radarr, sonarr** — `applications/{sonarr,radarr}/` pushed; `UrlBase`
+      cleared; `/api/*` and `/feed/*` exempt from Google login.
+      Cutover: `sudo systemctl disable --now docker-compose@sonarr docker-compose@radarr`
+      Then, via their APIs (key read in-container from config.xml):
+      - indexers: baseUrl → `http://jackett.jackett.svc.cluster.local:9117/api/v2.0/indexers/<id>/results/torznab/`
+        (no `/jackett`) with a **new** Jackett API key (the old one was printed
+        in a Sonarr error message during step 2) — then re-seal jackett-apikey,
+        clear `BasePathOverride`, drop the hostPort and the `/` redirect.
+      - download client qBittorrent: `192.168.1.10:8973` (dead since the compose
+        pia-qbittorrent stopped) → `qbittorrent.qbittorrent.svc.cluster.local:8888`
+        (pod CIDR 10.42.0.0/16 is in qBittorrent's AuthSubnetWhitelist).
+      - Plex notification: `192.168.1.10:32400` (dead) → `plex.plex.svc.cluster.local:32400`.
+      Old URLs `home.bkanuka.com/sonarr|/radarr` stop working (new:
+      `sonarr.home.bkanuka.com`); update any mobile apps.
 - [ ] **4. tautulli, paperless, stirling-pdf, filebrowser** (independent)
 - [ ] **5. frigate**
 - [ ] **6. heimdall** as the `home.bkanuka.com` root → cut nginx over → retire

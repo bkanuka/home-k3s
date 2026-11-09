@@ -1,0 +1,17 @@
+# Project for platform/*: cluster-scoped resources (CRDs, ClusterRoles, webhooks)
+# and any namespace are allowed; applications/* stay in the default project.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: platform
+  namespace: argocd
+spec:
+  description: Cluster platform components (platform/*)
+  sourceRepos:
+  - https://github.com/bkanuka/home-k3s.git
+  destinations:
+  - server: https://kubernetes.default.svc
+    namespace: '*'
+  clusterResourceWhitelist:
+  - group: '*'
+    kind: '*'

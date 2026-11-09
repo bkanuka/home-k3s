@@ -6,6 +6,7 @@ namespace: argocd
 # What Argo CD deploys: one ApplicationSet each for platform/* and applications/*,
 # plus the Application through which Argo CD manages its own ../ directory.
 resources:
+- appproject-platform.yaml
 - applicationset-platform.yaml
 - applicationset-applications.yaml
 - application-argocd.yaml

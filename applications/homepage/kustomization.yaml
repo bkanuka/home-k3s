@@ -24,3 +24,4 @@ configMapGenerator:
   - bookmarks.yaml
   - kubernetes.yaml
   - docker.yaml
+  - proxmox.yaml  # unused, but Homepage requires the file to exist

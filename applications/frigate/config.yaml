@@ -35,7 +35,7 @@ ffmpeg:
   #labelmap_path: /labelmap/coco-80.txt
 
 model:
-  path: plus://b020fa9f18a5470d5dca8ae5598a53d0
+  path: plus://e9f2bb62bf3fc721bce6a2862f401a55  # Frigate+ yolov9 s 320x320 (was yolonas 640: b020fa9f18a5470d5dca8ae5598a53d0)
 
 cameras:
   backyard:
@@ -149,7 +149,7 @@ review:
 objects:
   track:
     - person
-    - chicken
+    - chicken  # Frigate+ candidate label: chickens are detected as bird until it graduates
     - dog
     - cat
     - bird

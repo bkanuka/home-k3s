@@ -101,7 +101,16 @@ stirling-pdf, tautulli.
         (401 via both the Service and 192.168.1.200) — re-authenticate in
         Settings → Plex Media Server (address is pinned to
         `plex.plex.svc.cluster.local:32400` by the initContainer).
-- [ ] **5. frigate**
+- [x] **5. frigate** (2026-11-08) — `applications/frigate/`; LAN ports on
+      **192.168.1.201** (`frigate-lan` LoadBalancer), UI behind Google with
+      Frigate's own auth off. Config tuned at the same time (cameras via go2rtc,
+      predator-only alerts, motion-only continuous retention; see the comment
+      block in config.yaml for how to move detect to 1280x720 substreams once
+      the cameras have them). **Leftovers for the user**: point Home
+      Assistant's Frigate integration at `192.168.1.201:5000` (was
+      `192.168.1.10:5000`); consider rotating the cameras' admin password (it
+      was echoed in an ffprobe error during the migration) and resealing
+      `frigate-secrets`.
 - [ ] **6. heimdall** as the `home.bkanuka.com` root → cut nginx over → retire
       nginx + compose oauth2-proxy. nginx also serves `unifi` (needs a k8s
       equivalent like `applications/ha`'s ServiceEntry first) and a stale

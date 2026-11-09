@@ -84,8 +84,11 @@ Nothing here blocks the cluster; these are UI/external changes only the user can
 - [ ] **Paperless**: Postgres 15 → 18 (upstream) is a dump/restore of `pgdata`;
       do it deliberately, separately.
 - [ ] **ZFS**: `/mnt/main/config` has no snapshots — add a periodic snapshot task.
-- [ ] **Step 6 cutover**: check https://home.bkanuka.com, then `sudo systemctl
-      disable --now nginx docker-compose@heimdall docker-compose@oauth2-proxy`.
+- [ ] **Home Assistant**: Sonarr and Radarr integrations still poll the old
+      `home.bkanuka.com/sonarr|/radarr` URLs — change them to
+      `https://sonarr.home.bkanuka.com` / `https://radarr.home.bkanuka.com`.
+- [ ] **Server cleanup** (optional): archive/delete `/mnt/main/docker-compose`
+      and `/mnt/main/config/{heimdall,oauth2-proxy}`; `apt remove nginx`.
 - [ ] **Homepage widgets needing your credentials** (stubs in
       `applications/homepage/services.yaml`): qBittorrent WebUI password, Home
       Assistant long-lived token, TrueNAS API key, Argo CD API token — add to
@@ -152,7 +155,7 @@ Decisions for step 6: no UniFi route (use 192.168.1.1 directly), no legacy
       model. `chicken` is a Frigate+ *candidate* label: the models emit
       chickens as `bird`. Next model to request in Frigate+: type `yolov9`,
       size `s`, 320x320 (CUDA-graph accelerated in 0.17+; yolonas is not).
-- [ ] **6. homepage replaces heimdall; retire nginx + compose oauth2-proxy** —
+- [x] **6. homepage replaces heimdall; retire nginx + compose oauth2-proxy** (2026-11-08) —
       `applications/homepage/` (gethomepage.dev) is live on `home.bkanuka.com`
       (gateway `https-apex` listener) and `homepage.home.bkanuka.com`, config in
       git, widget keys sealed (2026-11-08). Heimdall was not migrated: its only
@@ -160,9 +163,18 @@ Decisions for step 6: no UniFi route (use 192.168.1.1 directly), no legacy
       name (every `*.home.bkanuka.com` and the apex resolve to the public IP,
       which the router forwards to the gateway); `unifi`/`vouch` sites are dead
       and are not being recreated.
-      Cutover (user): `sudo systemctl disable --now nginx docker-compose@heimdall docker-compose@oauth2-proxy`
-      Afterwards nothing from `/mnt/main/docker-compose` runs; the dirs and
+      nginx, heimdall and the compose oauth2-proxy were disabled the same day;
+      nothing from `/mnt/main/docker-compose` runs any more. The dirs and
       `/mnt/main/config/{heimdall,oauth2-proxy}` can be archived or deleted.
+      Follow-ups found while cutting over: oauth2-proxy's cookie/whitelist
+      domains must list the bare apex (suffix match); the gateway now has ONE
+      HTTPS listener without a hostname (separate wildcard/apex listeners were
+      separate Envoy filter chains, broken by HTTP/2 connection coalescing) and
+      an explicit cert-manager Certificate; the gateway access log is on
+      (`platform/gateway/telemetry.yaml`) and names the policy behind any
+      "RBAC: access denied".
+
+**Migration complete 2026-11-08.** The remaining items are in "User to-do".
 
 ## Per-app inventory
 

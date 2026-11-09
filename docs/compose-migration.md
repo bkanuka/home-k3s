@@ -60,6 +60,36 @@ Running instances as of 2026-11-08: ddns-updater, filebrowser, flaresolverr,
 frigate, heimdall, jackett, oauth2-proxy, paperless, radarr, sonarr,
 stirling-pdf, tautulli.
 
+## User to-do (as of 2026-11-08, after step 5)
+
+Nothing here blocks the cluster; these are UI/external changes only the user can make.
+
+- [ ] **Home Assistant**: Frigate integration host `192.168.1.10:5000` → `192.168.1.201:5000`.
+- [ ] **Frigate+**: request a new model — type `yolov9`, size `s`, 320x320 — and
+      paste the ID into `applications/frigate/config.yaml` (`model.path`). The
+      current `e9f2bb62…` is yolonas 320 from the 2025-07-23 training.
+- [ ] **Tautulli**: Settings → Plex Media Server → re-authenticate (stored token is
+      rejected with 401). Address is pinned to `plex.plex.svc.cluster.local:32400`.
+- [ ] **Sonarr & Radarr**: Settings → Connect → Plex → re-authenticate; host
+      `plex.plex.svc.cluster.local`, port `32400`. (Radarr's Kodi notification to
+      `osmc.home.bkanuka.com` 404s — fix or delete.)
+- [ ] **Sonarr/Radarr/Tautulli/Paperless bookmarks & phone apps**: old
+      `home.bkanuka.com/<app>` paths are gone; use `<app>.home.bkanuka.com`.
+- [ ] **Cameras** (optional): set substreams to 1280x720 @ 5 fps (how-to comment
+      above `detect:` in `applications/frigate/config.yaml`), then ask for the
+      detect-on-substream change.
+- [ ] **Cameras** (optional): rotate the admin password (it was echoed in an ffprobe
+      error during the migration); then reseal `frigate-secrets` (see the
+      `.yaml.example`) and commit.
+- [ ] **Paperless**: Postgres 15 → 18 (upstream) is a dump/restore of `pgdata`;
+      do it deliberately, separately.
+- [ ] **ZFS**: `/mnt/main/config` has no snapshots — add a periodic snapshot task.
+- [ ] **Step 6 cutover** (after the homepage app is up): `sudo systemctl disable
+      --now nginx docker-compose@heimdall docker-compose@oauth2-proxy`.
+
+Decisions for step 6: no UniFi route (use 192.168.1.1 directly), no legacy
+`home.bkanuka.com/<app>` redirects.
+
 ## Order / status
 
 - [x] **1. Cleanup** (2026-11-08) — dead projects `authentik`, `ombi`,

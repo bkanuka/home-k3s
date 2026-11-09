@@ -23,6 +23,7 @@ detectors:
 
 ffmpeg:
   hwaccel_args: preset-nvidia
+  path: "7.0"  # FFmpeg 8 (0.18 default) breaks go2rtc's #hardware transcode (chicken_run_1080)
 
   #model:
   #model_type: yolonas
@@ -154,10 +155,8 @@ objects:
     - bird
 record:
   enabled: True
-  sync_recordings: False
-  retain:
+  motion:  # continuous recording is off; keep motion segments 10 days
     days: 10
-    mode: motion
   alerts:
     retain:
       days: 60
@@ -170,7 +169,7 @@ snapshots:
   enabled: True
   retain:
     default: 10
-version: 0.16-0
+version: 0.18-0
 semantic_search:
   enabled: false
   model_size: small

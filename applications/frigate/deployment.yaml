@@ -44,7 +44,7 @@ spec:
           readOnly: true
       containers:
       - name: frigate
-        image: ghcr.io/blakeblackshear/frigate:0.16.1-tensorrt
+        image: ghcr.io/blakeblackshear/frigate:0.18.2-tensorrt
         securityContext:
           privileged: true  # /dev/dri, /dev/nvidia*, as in the compose file
         envFrom:

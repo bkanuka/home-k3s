@@ -1,9 +1,10 @@
-# Tautulli at tautulli.home.bkanuka.com; Google login is enforced at the gateway by authorizationpolicy.yaml.
+# Seerr at seerr.home.bkanuka.com. No Google login in front: other people sign in
+# with their Plex account to request media, so Seerr's own auth is the gate.
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: tautulli
-  namespace: tautulli
+  name: seerr
+  namespace: seerr
 spec:
   parentRefs:
   - group: gateway.networking.k8s.io
@@ -12,22 +13,22 @@ spec:
     kind: Gateway
     sectionName: https
   hostnames:
-  - tautulli.home.bkanuka.com
+  - seerr.home.bkanuka.com
   rules:
   - matches:
     - path:
         type: PathPrefix
         value: /
     backendRefs:
-    - name: tautulli
-      port: 8181
+    - name: seerr
+      port: 5055
       weight: 1
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: tautulli-https-redirect
-  namespace: tautulli
+  name: seerr-https-redirect
+  namespace: seerr
 spec:
   parentRefs:
   - group: gateway.networking.k8s.io
@@ -36,7 +37,7 @@ spec:
     kind: Gateway
     sectionName: http
   hostnames:
-  - tautulli.home.bkanuka.com
+  - seerr.home.bkanuka.com
   rules:
   - filters:
     - type: RequestRedirect

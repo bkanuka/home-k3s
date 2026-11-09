@@ -68,8 +68,15 @@ Nothing here blocks the cluster; these are UI/external changes only the user can
 - [ ] **Frigate+**: request a new model — type `yolov9`, size `s`, 320x320 — and
       paste the ID into `applications/frigate/config.yaml` (`model.path`). The
       current `e9f2bb62…` is yolonas 320 from the 2025-07-23 training.
-- [ ] **Tautulli**: Settings → Plex Media Server → re-authenticate (stored token is
-      rejected with 401). Address is pinned to `plex.plex.svc.cluster.local:32400`.
+- [ ] **Seerr** (replaced Tautulli 2026-11-08; `applications/seerr`, no Google login
+      — Plex-account sign-in for everyone): run the setup wizard at
+      https://seerr.home.bkanuka.com — sign in with Plex, pick the server (or
+      enter `plex.plex.svc.cluster.local` : `32400`), add Sonarr
+      (`sonarr.sonarr.svc.cluster.local:8989`, root `/tv`) and Radarr
+      (`radarr.radarr.svc.cluster.local:7878`, root `/movies`) with their API
+      keys; then put Seerr's API key into homepage-secrets as
+      `HOMEPAGE_VAR_SEERR_KEY` and uncomment the widget. Tautulli's data is
+      still at `/mnt/main/config/tautulli` if it is ever wanted back.
 - [ ] **Sonarr & Radarr**: Settings → Connect → Plex → re-authenticate; host
       `plex.plex.svc.cluster.local`, port `32400`. (Radarr's Kodi notification to
       `osmc.home.bkanuka.com` 404s — fix or delete.)
@@ -184,7 +191,8 @@ Decisions for step 6: no UniFi route (use 192.168.1.1 directly), no legacy
 | sonarr | `config.xml` (API key → placeholder) | `/mnt/main/config/sonarr` (drop the `/dev/rtc` mount) | `Unsorted`→`/downloads`, `TV`→`/tv` | same |
 | jackett | `Jackett/ServerConfig.json` (API key, admin pw → placeholders) | `Jackett/Indexers/`, `Jackett/DataProtection/` | — | UI Google; `/api/*` exempt |
 | flaresolverr | none | none | — | ClusterIP only, no route (only jackett uses it) |
-| tautulli | none — `config.ini` is UI-written and full of secrets, stays hostPath | `/mnt/main/config/tautulli`; ro `/mnt/main/config/plex/Library/Application Support/Logs` → `/plex-logs` | — | UI Google; `/api/v2` exempt |
+| tautulli | *removed 2026-11-08, replaced by Seerr*; data left at `/mnt/main/config/tautulli` | | | |
+| seerr | none — settings.json/db are app-written, hostPath `/mnt/main/config/seerr` | `/mnt/main/config/seerr` | — | Seerr's own login (Plex accounts); no gateway auth |
 | paperless-ngx | env vars → ConfigMap; `PAPERLESS_SECRET_KEY`, `POSTGRES_PASSWORD` → SealedSecret. Drop `FORCE_SCRIPT_NAME`/`STATIC_URL`, set `PAPERLESS_URL=https://paperless.home.bkanuka.com` | `paperless/pgdata` (postgres:15), `paperless/redis`, `paperless/data`, `paperless/export` | `nas/paperless`→media, `nas/paperless-consume`→consume | UI Google + remote-user header; `/api/*` exempt |
 | stirling-pdf | `configs/custom_settings.yml` | `configs/` (H2 db, key, cert), `tessdata/`, `customFiles/`, `pipeline/` | — | UI Google only |
 | filebrowser | `filebrowser.json` | `database.db`; `/mnt/main`, `/mnt/stripe`, `/mnt/working` | `/mnt/media`, `/mnt/nas` | UI Google; `/share/*`, `/api/public/*` exempt |

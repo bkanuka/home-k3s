@@ -11,15 +11,16 @@
           type: plex
           url: http://plex.plex.svc.cluster.local:32400
           key: "{{HOMEPAGE_VAR_PLEX_TOKEN}}"
-    - Tautulli:
-        icon: tautulli.png
-        href: https://tautulli.home.bkanuka.com
-        description: Plex stats
-        siteMonitor: http://tautulli.tautulli.svc.cluster.local:8181
-        widget:
-          type: tautulli
-          url: http://tautulli.tautulli.svc.cluster.local:8181
-          key: "{{HOMEPAGE_VAR_TAUTULLI_KEY}}"
+    - Seerr:
+        icon: seerr.png
+        href: https://seerr.home.bkanuka.com
+        description: Request movies & shows
+        siteMonitor: http://seerr.seerr.svc.cluster.local:5055/api/v1/status
+        # Needs Seerr's API key (Settings > General): add HOMEPAGE_VAR_SEERR_KEY, then:
+        # widget:
+        #   type: overseerr
+        #   url: http://seerr.seerr.svc.cluster.local:5055
+        #   key: "{{HOMEPAGE_VAR_SEERR_KEY}}"
     - Sonarr:
         icon: sonarr.png
         href: https://sonarr.home.bkanuka.com

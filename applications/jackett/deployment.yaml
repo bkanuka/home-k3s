@@ -1,0 +1,74 @@
+# Jackett. ServerConfig.json is git-managed: the render-config initContainer writes
+# the ConfigMap copy over /config on every start. Indexers/ and DataProtection/ are
+# app-written state and stay on the hostPath.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jackett
+  namespace: jackett
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate  # /config hostPath can't be shared by two pods
+  selector:
+    matchLabels:
+      app: jackett
+  template:
+    metadata:
+      labels:
+        app: jackett
+    spec:
+      initContainers:
+      # Keeps the old config as .prev, writes the ConfigMap copy with the API key filled in.
+      - name: render-config
+        image: busybox:1.37.0
+        command: ["sh", "-ec"]
+        args:
+        - |
+          dst=/config/Jackett/ServerConfig.json
+          mkdir -p "$(dirname "$dst")"
+          [ ! -f "$dst" ] || cp -p "$dst" "$dst.prev"
+          sed "s|__JACKETT_API_KEY__|$JACKETT_API_KEY|" /seed/ServerConfig.json > "$dst.tmp"
+          chown 1000:1000 "$dst.tmp" && chmod 600 "$dst.tmp"
+          mv "$dst.tmp" "$dst"
+        env:
+        - name: JACKETT_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: jackett-apikey
+              key: JACKETT_API_KEY
+        volumeMounts:
+        - name: config
+          mountPath: /config
+        - name: config-seed
+          mountPath: /seed
+          readOnly: true
+      containers:
+      - name: jackett
+        image: lscr.io/linuxserver/jackett:latest
+        env:
+        - name: PUID
+          value: "1000"
+        - name: PGID
+          value: "1000"
+        - name: TZ
+          value: America/Toronto
+        ports:
+        - name: http
+          containerPort: 9117
+          hostPort: 9117  # transitional: the compose Sonarr/Radarr reach Jackett at 192.168.1.10:9117 until they move
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+        volumeMounts:
+        - name: config
+          mountPath: /config
+      volumes:
+      - name: config
+        hostPath:
+          path: /mnt/main/config/jackett
+          type: Directory
+      - name: config-seed
+        configMap:
+          name: jackett-config

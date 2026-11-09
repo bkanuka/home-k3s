@@ -6,6 +6,15 @@ path-based routing on `home.bkanuka.com` with the compose `oauth2-proxy`) into
 this repo. End state: every app on its own `<app>.home.bkanuka.com` behind the
 Istio gateway, then nginx and the compose oauth2-proxy are retired.
 
+## Sealing secrets without seeing them
+
+`platform/sealed-secrets/seal.sh` on the server checkout (`~/home-k3s`): write
+the plaintext Secret there with a `python3 -I` one-liner that reads the value
+from the app's live config file, seal, `rm` the plaintext, `cat` the sealed
+file back into the local repo. Don't use `--fetch` on the server — kubeseal
+can't verify the API cert from that kubeconfig and truncates `pub-cert.pem`;
+`git checkout -- platform/sealed-secrets/pub-cert.pem` restores it.
+
 ## Rules
 
 - Text config files live in this repo (ConfigMap via `configMapGenerator`,
@@ -53,16 +62,16 @@ stirling-pdf, tautulli.
 
 ## Order / status
 
-- [ ] **1. Cleanup**
-  - [x] `docker compose down` on the dead projects `authentik`, `ombi`,
-        `rtorrent` (no systemd instance, so it stuck). Compose dirs left in
-        place.
-  - [ ] compose `ddns-updater` (duplicate of `applications/ddns-updater`, and it
-        still has the disabled Gandi token):
-        `sudo systemctl disable --now docker-compose@ddns-updater`
-  - [ ] leftover exited containers:
-        `docker compose -p transmission-wiregaurd down && docker compose -p httpbin down`
-- [ ] **2. flaresolverr → jackett**
+- [x] **1. Cleanup** (2026-11-08) — dead projects `authentik`, `ombi`,
+      `rtorrent`, `transmission-wiregaurd`, `httpbin` downed; compose
+      `ddns-updater` unit disabled. Compose dirs left in place.
+- [ ] **2. flaresolverr → jackett** — `applications/jackett/` (flaresolverr lives
+      in the same namespace; only Jackett uses it). Jackett pod has a
+      transitional `hostPort: 9117` so the compose Sonarr/Radarr keep reaching
+      it at `192.168.1.10:9117` with the same API key; drop it in step 3.
+      No `/api` exemption at the gateway (Jackett has no admin password, so its
+      admin API would be open) — in-cluster consumers use the Service.
+      Cutover: `sudo systemctl disable --now docker-compose@jackett docker-compose@flaresolverr`
 - [ ] **3. radarr, sonarr** (download client → `qbittorrent.qbittorrent.svc:8888`
       with API key; indexers → `jackett.jackett.svc:9117`)
 - [ ] **4. tautulli, paperless, stirling-pdf, filebrowser** (independent)

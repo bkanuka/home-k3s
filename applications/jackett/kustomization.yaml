@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# ServerConfig.json is git-managed: edit it here, not in the Web UI (UI changes are
+# overwritten on the next start; the previous file is kept as ServerConfig.json.prev).
+# APIKey is the __JACKETT_API_KEY__ placeholder, filled from the sealed jackett-apikey
+# Secret. Plaintext secrets (from *.yaml.example) are git-ignored; seal them with
+# platform/sealed-secrets/seal.sh.
+resources:
+- namespace.yaml
+- jackett-apikey-secret-sealed.yaml
+- deployment.yaml
+- service.yaml
+- flaresolverr.yaml
+- httproute.yaml
+- authorizationpolicy.yaml  # Google login (oauth2-proxy)
+- allowlist.yaml            # which accounts may use this host
+
+configMapGenerator:
+- name: jackett-config  # hash suffix rolls the pod when the config changes
+  namespace: jackett
+  files:
+  - ServerConfig.json

@@ -1,3 +1,4 @@
+# Valkey (Redis-compatible) task broker, as in upstream's compose file.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -17,7 +18,7 @@ spec:
     spec:
       containers:
       - name: redis
-        image: redis:7
+        image: valkey/valkey:9-alpine
         ports:
         - name: redis
           containerPort: 6379

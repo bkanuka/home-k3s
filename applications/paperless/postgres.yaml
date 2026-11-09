@@ -1,5 +1,6 @@
 # PostgreSQL 15 for Paperless; the cluster data dir stays on the hostPath (owned by
-# the image's postgres user).
+# the image's postgres user). Upstream is on postgres:18 — moving needs a
+# dump/restore (or pg_upgrade) of pgdata, not an image swap.
 apiVersion: apps/v1
 kind: Deployment
 metadata:

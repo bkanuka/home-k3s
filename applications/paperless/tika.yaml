@@ -16,11 +16,11 @@ spec:
     spec:
       containers:
       - name: gotenberg
-        image: gotenberg/gotenberg:7.10
+        image: gotenberg/gotenberg:8.38
         args:
         - gotenberg
         - --chromium-disable-javascript=true
-        - --chromium-allow-list=file:///tmp/.*
+        - --chromium-allow-list=^file:///tmp/.*
         ports:
         - name: http
           containerPort: 3000
@@ -59,7 +59,7 @@ spec:
     spec:
       containers:
       - name: tika
-        image: ghcr.io/paperless-ngx/tika:latest
+        image: apache/tika:3.3.1.0
         ports:
         - name: http
           containerPort: 9998

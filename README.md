@@ -68,8 +68,8 @@ LAN / Internet ──▶ MetalLB (L2, 192.168.1.200) ──▶ Istio Gateway "ho
 | ----- | ---- | ----------------- |
 | **k3s** | k3s itself, configured by [`k3s-config.yaml`](k3s-config.yaml) (`traefik` + `servicelb` off) | `install.sh` |
 | **Argo CD** | Argo CD itself + its config | **Bootstrapped once** by `install.sh` (`kubectl apply -k argocd/base` + `argocd/apps`), then **self-managed** via git (`argocd/`, incl. its own HTTPRoute + webhook secret). |
-| **Platform** | Everything under `platform/` — Gateway API CRDs, MetalLB (+ IP pool), Istio (+ ext_authz config), NVIDIA device plugin, Sealed Secrets, cert-manager (+ Gandi webhook + ClusterIssuers), the shared Gateway, oauth2-proxy | Managed by **Argo CD from git** (`platform` ApplicationSet). |
-| **Applications** | Everything under `applications/` (httpbin, plex, ddns-updater, qbittorrent, …) | Managed by **Argo CD from git** (`applications` ApplicationSet). |
+| **Platform** | Everything under `platform/` — Gateway API CRDs, MetalLB (+ IP pool), Istio (+ ext_authz config), NVIDIA device plugin, Sealed Secrets, cert-manager (+ Gandi webhook + ClusterIssuers), the shared Gateway, oauth2-proxy | Managed by **Argo CD from git** (`platform` ApplicationSet, in the `platform` AppProject). |
+| **Applications** | Everything under `applications/` (httpbin, plex, ddns-updater, qbittorrent, ha, …) | Managed by **Argo CD from git** (`applications` ApplicationSet, `default` project). |
 
 ```
 install.sh ──▶ k3s (k3s-config.yaml) ──▶ kubectl apply -k argocd/base, argocd/apps ──▶ Argo CD
@@ -169,12 +169,13 @@ minus `*-sealed.yaml`); `seal.sh` refuses to seal a file git would track.
 | `platform/cert-manager/` | cert-manager (Helm) + the SINTEF Gandi DNS-01 webhook (`webhook-gandi/`, wave 1) + Let's Encrypt `ClusterIssuer`s (wave 2) for gateway TLS. Gateway API integration needs the `--feature-gates=ExperimentalGatewayAPISupport=true` **and** `--enable-gateway-api` controller flags (see its `kustomization.yaml`). |
 | `platform/gateway/` | The single **shared Gateway** (`home-gateway`) — HTTP :80 + HTTPS :443 (wildcard + apex) + TCP :32400 (Plex) listeners. |
 | `platform/oauth2-proxy/` | **Google login** for the gateway: oauth2-proxy as Istio's `ext_authz` backend at `auth.home.bkanuka.com`. Apps opt in with an `AuthorizationPolicy`; see [Authentication](#authentication-google-login). |
-| `argocd/`       | Self-managed Argo CD. `base/` = install + config; `apps/` = the `platform` + `applications` ApplicationSets and the self-managing `Application`; plus its HTTPRoute (`argocd.home.bkanuka.com`) and the sealed webhook secret, which need CRDs that Argo CD itself installs. |
+| `argocd/`       | Self-managed Argo CD. `base/` = install + config; `apps/` = the `platform` AppProject, the `platform` + `applications` ApplicationSets and the self-managing `Application`; plus its HTTPRoute (`argocd.home.bkanuka.com`) and the sealed webhook secret, which need CRDs that Argo CD itself installs. |
 | `applications/` | **GitOps-managed services.** One folder per app; Argo CD deploys each at `<app>.home.bkanuka.com`. |
 | `applications/httpbin/` | Sample app — `HTTPRoute` + Google-login `AuthorizationPolicy` + email `allowlist.yaml` (the reference for protecting a service). |
 | `applications/plex/` | Plex Media Server (GPU transcode) — hostname `HTTPRoute` + a TCP `TCPRoute` on :32400 for built-in Remote Access. |
 | `applications/ddns-updater/` | Dynamic DNS updater (Gandi) — keeps the apex A record current; UI behind Google login. |
 | `applications/qbittorrent/` | qBittorrent over a PIA WireGuard tunnel; Web UI behind Google login. `qBittorrent.conf` is git-managed (ConfigMap written over the hostPath copy on every start). |
+| `applications/ha/` | Gateway route to Home Assistant running outside the cluster (192.168.1.204:8123) — selector-less Service + EndpointSlice; HA's own login, no oauth2-proxy. |
 
 ## Versions
 

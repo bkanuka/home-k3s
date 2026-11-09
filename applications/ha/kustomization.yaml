@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Gateway route to the Home Assistant host (192.168.1.204:8123). HA must list the
+# pod CIDR in http.trusted_proxies with use_x_forwarded_for: true.
+resources:
+- namespace.yaml
+- service.yaml
+- httproute.yaml

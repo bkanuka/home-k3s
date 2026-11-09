@@ -1,0 +1,28 @@
+# Home Assistant runs outside the cluster (192.168.1.204); a selector-less Service
+# plus a hand-written EndpointSlice make it routable from the gateway.
+apiVersion: v1
+kind: Service
+metadata:
+  name: home-assistant
+  namespace: ha
+spec:
+  ports:
+  - name: http
+    port: 8123
+    targetPort: 8123
+---
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: home-assistant
+  namespace: ha
+  labels:
+    kubernetes.io/service-name: home-assistant
+addressType: IPv4
+ports:
+- name: http
+  port: 8123
+  protocol: TCP
+endpoints:
+- addresses:
+  - 192.168.1.204

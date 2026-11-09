@@ -1,0 +1,26 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Homepage's config is the *.yaml files listed in the configMapGenerator; edit them
+# here. Secrets are {{HOMEPAGE_VAR_...}} from the sealed homepage-secrets Secret
+# (see homepage-secrets-secret.yaml.example; seal with platform/sealed-secrets/seal.sh).
+resources:
+- namespace.yaml
+- homepage-secrets-secret-sealed.yaml
+- rbac.yaml
+- deployment.yaml
+- service.yaml
+- httproute.yaml
+- authorizationpolicy.yaml  # Google login (oauth2-proxy)
+- allowlist.yaml            # which accounts may use this host
+
+configMapGenerator:
+- name: homepage-config  # hash suffix rolls the pod when any file changes
+  namespace: homepage
+  files:
+  - settings.yaml
+  - services.yaml
+  - widgets.yaml
+  - bookmarks.yaml
+  - kubernetes.yaml
+  - docker.yaml

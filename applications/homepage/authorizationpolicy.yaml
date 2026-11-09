@@ -1,0 +1,20 @@
+# Requires Google login (oauth2-proxy) on the dashboard hostnames.
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: homepage-ext-authz
+  namespace: istio-system  # must match the Gateway's namespace
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: Gateway
+    name: home-gateway
+  action: CUSTOM
+  provider:
+    name: oauth2-proxy  # extensionProvider in the Istio meshConfig
+  rules:
+  - to:
+    - operation:
+        hosts:
+        - home.bkanuka.com
+        - homepage.home.bkanuka.com

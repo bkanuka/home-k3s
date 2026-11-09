@@ -1,0 +1,49 @@
+# Homepage (gethomepage.dev): the dashboard at home.bkanuka.com. All config is the
+# homepage-config ConfigMap (the *.yaml files here); API keys come from the sealed
+# homepage-secrets Secret via {{HOMEPAGE_VAR_...}} substitution. Stateless.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: homepage
+  namespace: homepage
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: homepage
+  template:
+    metadata:
+      labels:
+        app: homepage
+    spec:
+      serviceAccountName: homepage
+      enableServiceLinks: false
+      containers:
+      - name: homepage
+        image: ghcr.io/gethomepage/homepage:latest
+        env:
+        - name: HOMEPAGE_ALLOWED_HOSTS
+          value: home.bkanuka.com,homepage.home.bkanuka.com
+        - name: TZ
+          value: America/Toronto
+        envFrom:
+        - secretRef:
+            name: homepage-secrets
+        ports:
+        - name: http
+          containerPort: 3000
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
+        - name: logs
+          mountPath: /app/config/logs
+      volumes:
+      - name: config
+        configMap:
+          name: homepage-config
+      - name: logs
+        emptyDir: {}

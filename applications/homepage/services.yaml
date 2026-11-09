@@ -1,0 +1,139 @@
+# Tiles and their live widgets. URLs in href: are what the browser opens; widget and
+# siteMonitor URLs stay inside the cluster. Secrets come from the sealed
+# homepage-secrets Secret as {{HOMEPAGE_VAR_...}}.
+- Media:
+    - Plex:
+        icon: plex.png
+        href: https://app.plex.tv/desktop
+        description: Media server
+        siteMonitor: http://plex.plex.svc.cluster.local:32400/identity
+        widget:
+          type: plex
+          url: http://plex.plex.svc.cluster.local:32400
+          key: "{{HOMEPAGE_VAR_PLEX_TOKEN}}"
+    - Tautulli:
+        icon: tautulli.png
+        href: https://tautulli.home.bkanuka.com
+        description: Plex stats
+        siteMonitor: http://tautulli.tautulli.svc.cluster.local:8181
+        widget:
+          type: tautulli
+          url: http://tautulli.tautulli.svc.cluster.local:8181
+          key: "{{HOMEPAGE_VAR_TAUTULLI_KEY}}"
+    - Sonarr:
+        icon: sonarr.png
+        href: https://sonarr.home.bkanuka.com
+        description: TV
+        siteMonitor: http://sonarr.sonarr.svc.cluster.local:8989/ping
+        widget:
+          type: sonarr
+          url: http://sonarr.sonarr.svc.cluster.local:8989
+          key: "{{HOMEPAGE_VAR_SONARR_KEY}}"
+    - Radarr:
+        icon: radarr.png
+        href: https://radarr.home.bkanuka.com
+        description: Movies
+        siteMonitor: http://radarr.radarr.svc.cluster.local:7878/ping
+        widget:
+          type: radarr
+          url: http://radarr.radarr.svc.cluster.local:7878
+          key: "{{HOMEPAGE_VAR_RADARR_KEY}}"
+    - qBittorrent:
+        icon: qbittorrent.png
+        href: https://qbittorrent.home.bkanuka.com
+        description: Downloads (PIA)
+        siteMonitor: http://qbittorrent.qbittorrent.svc.cluster.local:8888
+        # Needs the WebUI password: add HOMEPAGE_VAR_QBITTORRENT_PASSWORD to the secret, then:
+        # widget:
+        #   type: qbittorrent
+        #   url: http://qbittorrent.qbittorrent.svc.cluster.local:8888
+        #   username: admin
+        #   password: "{{HOMEPAGE_VAR_QBITTORRENT_PASSWORD}}"
+    - Jackett:
+        icon: jackett.png
+        href: https://jackett.home.bkanuka.com
+        description: Indexers
+        siteMonitor: http://jackett.jackett.svc.cluster.local:9117/UI/Login
+        widget:
+          type: jackett
+          url: http://jackett.jackett.svc.cluster.local:9117
+- Home:
+    - Home Assistant:
+        icon: home-assistant.png
+        href: https://ha.home.bkanuka.com
+        description: 192.168.1.204
+        siteMonitor: http://192.168.1.204:8123
+        # Needs a long-lived access token (HA profile > Security): add HOMEPAGE_VAR_HA_TOKEN, then:
+        # widget:
+        #   type: homeassistant
+        #   url: http://192.168.1.204:8123
+        #   key: "{{HOMEPAGE_VAR_HA_TOKEN}}"
+    - Frigate:
+        icon: frigate.png
+        href: https://frigate.home.bkanuka.com
+        description: NVR
+        siteMonitor: http://frigate-lan.frigate.svc.cluster.local:5000/api/version
+        widget:
+          type: frigate
+          url: http://frigate-lan.frigate.svc.cluster.local:5000
+          enableRecentEvents: true
+    - UniFi:
+        icon: unifi.png
+        href: https://192.168.1.1
+        description: Router
+        siteMonitor: https://192.168.1.1
+    - TrueNAS:
+        icon: truenas-scale.png
+        href: https://192.168.1.15
+        description: NAS (media, nas, backup)
+        siteMonitor: https://192.168.1.15
+        # Needs a TrueNAS API key: add HOMEPAGE_VAR_TRUENAS_KEY, then:
+        # widget:
+        #   type: truenas
+        #   url: https://192.168.1.15
+        #   key: "{{HOMEPAGE_VAR_TRUENAS_KEY}}"
+- Documents:
+    - Paperless:
+        icon: paperless-ngx.png
+        href: https://paperless.home.bkanuka.com
+        description: Documents
+        siteMonitor: http://paperless.paperless.svc.cluster.local:8000
+        widget:
+          type: paperlessngx
+          url: http://paperless.paperless.svc.cluster.local:8000
+          key: "{{HOMEPAGE_VAR_PAPERLESS_TOKEN}}"
+    - Stirling-PDF:
+        icon: stirling-pdf.png
+        href: https://stirling-pdf.home.bkanuka.com
+        description: PDF tools
+        siteMonitor: http://stirling-pdf.stirling-pdf.svc.cluster.local:8080
+    - File Browser:
+        icon: filebrowser.png
+        href: https://filebrowser.home.bkanuka.com
+        description: /mnt on the server and the NAS
+        siteMonitor: http://filebrowser.filebrowser.svc.cluster.local:80
+- Cluster:
+    - Argo CD:
+        icon: argo-cd.png
+        href: https://argocd.home.bkanuka.com
+        description: GitOps
+        siteMonitor: http://argocd-server.argocd.svc.cluster.local:80
+        # Needs an Argo CD API token: add HOMEPAGE_VAR_ARGOCD_TOKEN, then:
+        # widget:
+        #   type: argocd
+        #   url: http://argocd-server.argocd.svc.cluster.local:80
+        #   key: "{{HOMEPAGE_VAR_ARGOCD_TOKEN}}"
+    - ddns-updater:
+        icon: ddns-updater.png
+        href: https://ddns-updater.home.bkanuka.com
+        description: Gandi DNS
+        siteMonitor: http://ddns-updater.ddns-updater.svc.cluster.local:8572
+    - httpbin:
+        icon: mdi-api
+        href: https://httpbin.home.bkanuka.com
+        description: Request echo
+        siteMonitor: http://httpbin.httpbin.svc.cluster.local:80/get
+    - Gateway:
+        icon: istio.png
+        href: https://home.bkanuka.com
+        description: 192.168.1.200 (Istio) / 192.168.1.201 (Frigate)

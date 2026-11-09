@@ -1,0 +1,21 @@
+title: Home
+favicon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/homepage.png
+theme: dark
+color: slate
+headerStyle: clean
+hideVersion: true
+statusStyle: dot
+base: https://home.bkanuka.com
+layout:
+  Media:
+    style: row
+    columns: 3
+  Home:
+    style: row
+    columns: 4
+  Documents:
+    style: row
+    columns: 3
+  Cluster:
+    style: row
+    columns: 4

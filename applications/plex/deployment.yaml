@@ -43,20 +43,18 @@ spec:
         volumeMounts:
         - name: config
           mountPath: /config
-        - name: movies
+        - name: media
           mountPath: /data/movies
-        - name: tvshows
+          subPath: Movies
+        - name: media
           mountPath: /data/tvshows
+          subPath: TV
       volumes:
       - name: config
         hostPath:
           path: /mnt/main/config/plex
           type: Directory
-      - name: movies
-        hostPath:
-          path: /mnt/media/Movies
-          type: Directory
-      - name: tvshows
-        hostPath:
-          path: /mnt/media/TV
-          type: Directory
+      - name: media  # TrueNAS export
+        nfs:
+          server: 192.168.1.15
+          path: /mnt/main/media

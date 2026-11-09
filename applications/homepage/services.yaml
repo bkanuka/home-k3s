@@ -16,11 +16,10 @@
         href: https://seerr.home.bkanuka.com
         description: Request movies & shows
         siteMonitor: http://seerr.seerr.svc.cluster.local:5055/api/v1/status
-        # Needs Seerr's API key (Settings > General): add HOMEPAGE_VAR_SEERR_KEY, then:
-        # widget:
-        #   type: overseerr
-        #   url: http://seerr.seerr.svc.cluster.local:5055
-        #   key: "{{HOMEPAGE_VAR_SEERR_KEY}}"
+        widget:
+          type: overseerr
+          url: http://seerr.seerr.svc.cluster.local:5055
+          key: "{{HOMEPAGE_VAR_SEERR_KEY}}"
     - Sonarr:
         icon: sonarr.png
         href: https://sonarr.home.bkanuka.com
@@ -44,12 +43,11 @@
         href: https://qbittorrent.home.bkanuka.com
         description: Downloads (PIA)
         siteMonitor: http://qbittorrent.qbittorrent.svc.cluster.local:8888
-        # Needs the WebUI password: add HOMEPAGE_VAR_QBITTORRENT_PASSWORD to the secret, then:
-        # widget:
-        #   type: qbittorrent
-        #   url: http://qbittorrent.qbittorrent.svc.cluster.local:8888
-        #   username: admin
-        #   password: "{{HOMEPAGE_VAR_QBITTORRENT_PASSWORD}}"
+        widget:
+          type: qbittorrent
+          url: http://qbittorrent.qbittorrent.svc.cluster.local:8888
+          username: admin
+          password: "{{HOMEPAGE_VAR_QBITTORRENT_PASSWORD}}"
     - Jackett:
         icon: jackett.png
         href: https://jackett.home.bkanuka.com
@@ -62,11 +60,10 @@
         href: https://ha.home.bkanuka.com
         description: 192.168.1.204
         siteMonitor: http://192.168.1.204:8123
-        # Needs a long-lived access token (HA profile > Security): add HOMEPAGE_VAR_HA_TOKEN, then:
-        # widget:
-        #   type: homeassistant
-        #   url: http://192.168.1.204:8123
-        #   key: "{{HOMEPAGE_VAR_HA_TOKEN}}"
+        widget:
+          type: homeassistant
+          url: http://192.168.1.204:8123
+          key: "{{HOMEPAGE_VAR_HA_TOKEN}}"
     - Frigate:
         icon: frigate.png
         href: https://frigate.home.bkanuka.com
@@ -86,11 +83,10 @@
         href: https://192.168.1.15
         description: NAS (media, nas, backup)
         siteMonitor: https://192.168.1.15
-        # Needs a TrueNAS API key: add HOMEPAGE_VAR_TRUENAS_KEY, then:
-        # widget:
-        #   type: truenas
-        #   url: https://192.168.1.15
-        #   key: "{{HOMEPAGE_VAR_TRUENAS_KEY}}"
+        widget:
+          type: truenas
+          url: https://192.168.1.15
+          key: "{{HOMEPAGE_VAR_TRUENAS_KEY}}"
 - Documents:
     - Paperless:
         icon: paperless-ngx.png

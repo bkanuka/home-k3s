@@ -1,4 +1,5 @@
-# Argo CD RBAC: the listed Google accounts (OIDC email claim) are admin.
+# Argo CD RBAC: the listed Google accounts (OIDC email claim) are admin; the local
+# "readonly" account (argocd-cm) may only read applications.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -7,4 +8,6 @@ data:
   policy.default: ""  # anyone else who signs in gets no access
   policy.csv: |
     g, bkanuka@gmail.com, role:admin
+    p, role:readonly, applications, get, */*, allow
+    g, readonly, role:readonly
   scopes: '[email]'

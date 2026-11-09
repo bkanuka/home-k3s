@@ -5,6 +5,7 @@ kind: ConfigMap
 metadata:
   name: argocd-cm
 data:
+  accounts.readonly: apiKey  # API-token-only account (no UI login) for read-only clients such as the Homepage widget
   kustomize.buildOptions: --enable-helm  # platform/* kustomizations use helmCharts:
   url: https://argocd.home.bkanuka.com  # required for correct OIDC redirect URLs behind the gateway
   oidc.config: |

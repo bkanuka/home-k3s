@@ -62,7 +62,7 @@ spec:
         - name: config
           mountPath: /config
         - name: media
-          mountPath: /downloads
+          mountPath: /downloads/complete  # same path qBittorrent reports, so no remote path mapping is needed
           subPath: Unsorted
         - name: media
           mountPath: /movies

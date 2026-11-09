@@ -1,0 +1,15 @@
+# Envoy access log for the gateway (kubectl -n istio-system logs deploy/home-gateway-istio).
+# Each line carries the host, path, status and, for denials, the matching policy.
+apiVersion: telemetry.istio.io/v1
+kind: Telemetry
+metadata:
+  name: home-gateway-access-log
+  namespace: istio-system
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: Gateway
+    name: home-gateway
+  accessLogging:
+  - providers:
+    - name: envoy

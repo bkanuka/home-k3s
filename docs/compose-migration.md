@@ -111,6 +111,13 @@ stirling-pdf, tautulli.
       `192.168.1.10:5000`); consider rotating the cameras' admin password (it
       was echoed in an ffprobe error during the migration) and resealing
       `frigate-secrets`.
+      Later the same day: upgraded to **0.18.2-tensorrt** (config pre-migrated
+      to the tiered `record.motion` schema, `version: 0.18-0`, ffmpeg pinned to
+      7.0 for the go2rtc `#hardware` transcode; `frigate.db.0.16.1` is the
+      pre-upgrade backup on the server) and switched to the Frigate+ 320x320
+      model. `chicken` is a Frigate+ *candidate* label: the models emit
+      chickens as `bird`. Next model to request in Frigate+: type `yolov9`,
+      size `s`, 320x320 (CUDA-graph accelerated in 0.17+; yolonas is not).
 - [ ] **6. heimdall** as the `home.bkanuka.com` root → cut nginx over → retire
       nginx + compose oauth2-proxy. nginx also serves `unifi` (needs a k8s
       equivalent like `applications/ha`'s ServiceEntry first) and a stale

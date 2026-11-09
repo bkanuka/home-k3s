@@ -35,7 +35,7 @@ ffmpeg:
   #labelmap_path: /labelmap/coco-80.txt
 
 model:
-  path: plus://e9f2bb62bf3fc721bce6a2862f401a55  # Frigate+ yolov9 s 320x320 (was yolonas 640: b020fa9f18a5470d5dca8ae5598a53d0)
+  path: plus://e9f2bb62bf3fc721bce6a2862f401a55  # Frigate+ yolonas 320x320, trained 2025-07-23 (was the 640x640 one, b020fa9f...; ~39 ms -> ~16 ms)
 
 cameras:
   backyard:

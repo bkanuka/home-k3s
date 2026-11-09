@@ -15,6 +15,6 @@
   <SslCertPassword></SslCertPassword>
   <InstanceName>Radarr</InstanceName>
   <AuthenticationRequired>DisabledForLocalAddresses</AuthenticationRequired>
-  <AllowedHosts></AllowedHosts>
-  <TrustedNetworks></TrustedNetworks>
+  <AllowedHosts>radarr.home.bkanuka.com,radarr.radarr.svc.cluster.local,radarr.radarr.svc,radarr.radarr,radarr</AllowedHosts>
+  <TrustedNetworks>10.42.0.0/16</TrustedNetworks>
 </Config>

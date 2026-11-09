@@ -15,6 +15,6 @@
   <InstanceName>Sonarr</InstanceName>
   <SslCertPath></SslCertPath>
   <SslCertPassword></SslCertPassword>
-  <AllowedHosts></AllowedHosts>
-  <TrustedNetworks></TrustedNetworks>
+  <AllowedHosts>sonarr.home.bkanuka.com,sonarr.sonarr.svc.cluster.local,sonarr.sonarr.svc,sonarr.sonarr,sonarr</AllowedHosts>
+  <TrustedNetworks>10.42.0.0/16</TrustedNetworks>
 </Config>

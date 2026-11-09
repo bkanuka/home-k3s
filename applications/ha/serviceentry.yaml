@@ -1,0 +1,19 @@
+# Home Assistant runs outside the cluster (192.168.1.204). Argo CD 3 excludes
+# EndpointSlice by default, so the external host is an Istio ServiceEntry that
+# the HTTPRoute references as a Hostname backend.
+apiVersion: networking.istio.io/v1
+kind: ServiceEntry
+metadata:
+  name: home-assistant
+  namespace: ha
+spec:
+  hosts:
+  - home-assistant.ha.internal
+  location: MESH_EXTERNAL
+  resolution: STATIC
+  ports:
+  - number: 8123
+    name: http
+    protocol: HTTP
+  endpoints:
+  - address: 192.168.1.204

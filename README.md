@@ -175,7 +175,7 @@ minus `*-sealed.yaml`); `seal.sh` refuses to seal a file git would track.
 | `applications/plex/` | Plex Media Server (GPU transcode) — hostname `HTTPRoute` + a TCP `TCPRoute` on :32400 for built-in Remote Access. |
 | `applications/ddns-updater/` | Dynamic DNS updater (Gandi) — keeps the apex A record current; UI behind Google login. |
 | `applications/qbittorrent/` | qBittorrent over a PIA WireGuard tunnel; Web UI behind Google login. `qBittorrent.conf` is git-managed (ConfigMap written over the hostPath copy on every start). |
-| `applications/ha/` | Gateway route to Home Assistant running outside the cluster (192.168.1.204:8123) — selector-less Service + EndpointSlice; HA's own login, no oauth2-proxy. |
+| `applications/ha/` | Gateway route to Home Assistant running outside the cluster (192.168.1.204:8123) — Istio ServiceEntry referenced as a Hostname backend; HA's own login, no oauth2-proxy. |
 
 ## Versions
 

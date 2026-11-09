@@ -5,5 +5,5 @@ kind: Kustomization
 # pod CIDR in http.trusted_proxies with use_x_forwarded_for: true.
 resources:
 - namespace.yaml
-- service.yaml
+- serviceentry.yaml
 - httproute.yaml

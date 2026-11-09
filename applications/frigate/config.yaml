@@ -41,8 +41,8 @@ cameras:
     enabled: true
     ffmpeg:
       inputs:
-        - path: 
-            rtsp://admin:{FRIGATE_RTSP_PASSWORD}@192.168.1.187:554/Streaming/Channels/101
+        - path: rtsp://127.0.0.1:8554/backyard
+          input_args: preset-rtsp-restream
           roles:
             - detect
             - record
@@ -50,8 +50,8 @@ cameras:
     enabled: true
     ffmpeg:
       inputs:
-        - path: 
-            rtsp://admin:{FRIGATE_RTSP_PASSWORD}@192.168.1.150:554/Streaming/Channels/101
+        - path: rtsp://127.0.0.1:8554/chicken_coop_1
+          input_args: preset-rtsp-restream
           roles:
             - detect
             - record
@@ -62,9 +62,11 @@ cameras:
   chicken_coop_2:
     enabled: true
     ffmpeg:
+      output_args:
+        record: preset-record-generic-audio-copy  # AAC from the camera
       inputs:
-        - path: 
-            rtsp://admin:{FRIGATE_RTSP_PASSWORD}@192.168.1.246:554/cam/realmonitor?channel=1&subtype=0
+        - path: rtsp://127.0.0.1:8554/chicken_coop_2
+          input_args: preset-rtsp-restream
           roles:
             - detect
             - record
@@ -76,8 +78,8 @@ cameras:
     enabled: true
     ffmpeg:
       inputs:
-        - path: 
-            rtsp://admin:{FRIGATE_RTSP_PASSWORD}@192.168.1.156:554/Streaming/Channels/101
+        - path: rtsp://127.0.0.1:8554/chicken_run
+          input_args: preset-rtsp-restream
           roles:
             - detect
             - record
@@ -85,6 +87,10 @@ cameras:
       threshold: 31
       contour_area: 35
       improve_contrast: true
+    live:
+      streams:
+        4 MP: chicken_run
+        1080p: chicken_run_1080
 
 go2rtc:
   webrtc:
@@ -100,13 +106,45 @@ go2rtc:
       - rtsp://admin:{FRIGATE_RTSP_PASSWORD}@192.168.1.246:554/cam/realmonitor?channel=1&subtype=0
     chicken_run:
       - rtsp://admin:{FRIGATE_RTSP_PASSWORD}@192.168.1.156:554/Streaming/Channels/101
+    chicken_run_1080:  # GPU-transcoded live view of the 4 MP stream (not used for record/detect)
       - "ffmpeg:chicken_run#video=h264#width=1920#height=1080#hardware"
 
+# detect runs on the main streams because the substreams are too small (as of
+# 2026-11-08: backyard 640x480, chicken_coop_1 352x240, chicken_run 640x360,
+# chicken_coop_2 none). To move detection to substreams (cuts decode load, mainly
+# chicken_run's 4 MP stream):
+#   1. On each camera set the substream to 1280x720, 5 fps, H.264:
+#        Hikvision (.187 .150 .156): Configuration > Video/Audio > Sub-stream
+#          -> rtsp://admin:...@<ip>:554/Streaming/Channels/102
+#        Dahua (.246): Setting > Camera > Video > Sub Stream (enable it)
+#          -> rtsp://admin:...@192.168.1.246:554/cam/realmonitor?channel=1&subtype=1
+#   2. Add a go2rtc stream per camera, e.g.
+#        backyard_sub:
+#          - rtsp://admin:{FRIGATE_RTSP_PASSWORD}@192.168.1.187:554/Streaming/Channels/102
+#   3. Split the camera's inputs:
+#        - path: rtsp://127.0.0.1:8554/backyard
+#          input_args: preset-rtsp-restream
+#          roles: [record]
+#        - path: rtsp://127.0.0.1:8554/backyard_sub
+#          input_args: preset-rtsp-restream
+#          roles: [detect]
+#      and keep detect.width/height equal to the substream's resolution.
+#   Verify the stream first from the pod (password is in the env):
+#     kubectl -n frigate exec deploy/frigate -- sh -c '/usr/lib/ffmpeg/7.0/bin/ffprobe -v error \
+#       -rtsp_transport tcp -show_entries stream=codec_name,width,height -of csv=p=0 \
+#       "rtsp://admin:$FRIGATE_RTSP_PASSWORD@192.168.1.187:554/Streaming/Channels/102" 2>&1 | sed "s#admin:[^@]*@#admin:<pw>@#"'
+# Alerts are what needs a look (people, predators); chickens/birds are detections.
 detect:
   enabled: true
   width: 1280
   height: 720
   fps: 5
+review:
+  alerts:
+    labels:
+      - person
+      - dog
+      - cat
 objects:
   track:
     - person
@@ -116,10 +154,10 @@ objects:
     - bird
 record:
   enabled: True
-  sync_recordings: True
+  sync_recordings: False
   retain:
     days: 10
-    mode: all
+    mode: motion
   alerts:
     retain:
       days: 60
@@ -130,6 +168,8 @@ record:
       mode: motion
 snapshots:
   enabled: True
+  retain:
+    default: 10
 version: 0.16-0
 semantic_search:
   enabled: false

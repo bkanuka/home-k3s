@@ -76,6 +76,21 @@ spec:
           requests:
             cpu: "1"
             memory: 2Gi
+          limits:
+            memory: 8Gi  # ~3.6 GiB in normal use
+        readinessProbe:
+          httpGet:
+            path: /api/version
+            port: 5000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /api/version
+            port: 5000
+          initialDelaySeconds: 120
+          periodSeconds: 30
+          failureThreshold: 4
         volumeMounts:
         - name: config
           mountPath: /config

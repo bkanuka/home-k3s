@@ -1,0 +1,151 @@
+
+mqtt:
+  enabled: true
+
+  #host: ha.home.bkanuka.com
+  host: 192.168.1.204
+  topic_prefix: frigate
+
+  user: mqtt
+  password: "{FRIGATE_MQTT_PASSWORD}"
+
+tls:
+  enabled: False
+
+
+detectors:
+  onnx_0:
+    type: onnx
+    device: "0"
+  onnx_1:
+    type: onnx
+    device: "1"
+
+ffmpeg:
+  hwaccel_args: preset-nvidia
+
+  #model:
+  #model_type: yolonas
+  #width: 320 
+  #height: 320
+  #input_pixel_format: bgr
+  #input_tensor: nchw
+  #path: /config/yolo_nas_s.onnx
+  #labelmap_path: /labelmap/coco-80.txt
+
+model:
+  path: plus://b020fa9f18a5470d5dca8ae5598a53d0
+
+cameras:
+  backyard:
+    enabled: true
+    ffmpeg:
+      inputs:
+        - path: 
+            rtsp://admin:{FRIGATE_RTSP_PASSWORD}@192.168.1.187:554/Streaming/Channels/101
+          roles:
+            - detect
+            - record
+  chicken_coop_1:
+    enabled: true
+    ffmpeg:
+      inputs:
+        - path: 
+            rtsp://admin:{FRIGATE_RTSP_PASSWORD}@192.168.1.150:554/Streaming/Channels/101
+          roles:
+            - detect
+            - record
+    objects:
+      track:
+        - chicken
+        - bird
+  chicken_coop_2:
+    enabled: true
+    ffmpeg:
+      inputs:
+        - path: 
+            rtsp://admin:{FRIGATE_RTSP_PASSWORD}@192.168.1.246:554/cam/realmonitor?channel=1&subtype=0
+          roles:
+            - detect
+            - record
+    objects:
+      track:
+        - chicken
+        - bird
+  chicken_run:
+    enabled: true
+    ffmpeg:
+      inputs:
+        - path: 
+            rtsp://admin:{FRIGATE_RTSP_PASSWORD}@192.168.1.156:554/Streaming/Channels/101
+          roles:
+            - detect
+            - record
+    motion:
+      threshold: 31
+      contour_area: 35
+      improve_contrast: true
+
+go2rtc:
+  webrtc:
+    candidates:
+      - 192.168.1.201:8555
+      - stun:8555
+  streams:
+    backyard:
+      - rtsp://admin:{FRIGATE_RTSP_PASSWORD}@192.168.1.187:554/Streaming/Channels/101
+    chicken_coop_1:
+      - rtsp://admin:{FRIGATE_RTSP_PASSWORD}@192.168.1.150:554/Streaming/Channels/101
+    chicken_coop_2:
+      - rtsp://admin:{FRIGATE_RTSP_PASSWORD}@192.168.1.246:554/cam/realmonitor?channel=1&subtype=0
+    chicken_run:
+      - rtsp://admin:{FRIGATE_RTSP_PASSWORD}@192.168.1.156:554/Streaming/Channels/101
+      - "ffmpeg:chicken_run#video=h264#width=1920#height=1080#hardware"
+
+detect:
+  enabled: true
+  width: 1280
+  height: 720
+  fps: 5
+objects:
+  track:
+    - person
+    - chicken
+    - dog
+    - cat
+    - bird
+record:
+  enabled: True
+  sync_recordings: True
+  retain:
+    days: 10
+    mode: all
+  alerts:
+    retain:
+      days: 60
+      mode: motion
+  detections:
+    retain:
+      days: 60
+      mode: motion
+snapshots:
+  enabled: True
+version: 0.16-0
+semantic_search:
+  enabled: false
+  model_size: small
+face_recognition:
+  enabled: false
+  model_size: small
+lpr:
+  enabled: false
+classification:
+  bird:
+    enabled: false
+
+# Google login happens at the gateway (oauth2-proxy); trust its email header.
+auth:
+  enabled: false
+proxy:
+  header_map:
+    user: x-auth-request-email

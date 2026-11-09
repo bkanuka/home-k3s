@@ -1,0 +1,46 @@
+# Web UI for the gateway (HTTPRoute).
+apiVersion: v1
+kind: Service
+metadata:
+  name: frigate
+  namespace: frigate
+spec:
+  selector:
+    app: frigate
+  ports:
+  - name: ui
+    port: 8971
+    targetPort: 8971
+---
+# LAN-facing ports on a dedicated MetalLB IP: Home Assistant (192.168.1.204) talks
+# to the unauthenticated API on 5000; RTSP restreams and WebRTC for viewers.
+# config.yaml advertises this IP as the WebRTC candidate.
+apiVersion: v1
+kind: Service
+metadata:
+  name: frigate-lan
+  namespace: frigate
+  annotations:
+    metallb.io/loadBalancerIPs: 192.168.1.201
+spec:
+  type: LoadBalancer
+  selector:
+    app: frigate
+  ports:
+  - name: api
+    port: 5000
+    targetPort: 5000
+  - name: go2rtc
+    port: 1984
+    targetPort: 1984
+  - name: rtsp
+    port: 8554
+    targetPort: 8554
+  - name: webrtc-tcp
+    port: 8555
+    targetPort: 8555
+    protocol: TCP
+  - name: webrtc-udp
+    port: 8555
+    targetPort: 8555
+    protocol: UDP

@@ -1,0 +1,20 @@
+# Requires Google login (oauth2-proxy) on this host. Frigate's own auth is off
+# (config.yaml), so nothing on this hostname may bypass the gateway login.
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: frigate-ext-authz
+  namespace: istio-system  # must match the Gateway's namespace
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: Gateway
+    name: home-gateway
+  action: CUSTOM
+  provider:
+    name: oauth2-proxy  # extensionProvider in the Istio meshConfig
+  rules:
+  - to:
+    - operation:
+        hosts:
+        - frigate.home.bkanuka.com

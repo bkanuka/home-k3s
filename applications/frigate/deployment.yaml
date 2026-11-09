@@ -1,0 +1,107 @@
+# Frigate NVR. config.yaml is git-managed: the render-config initContainer writes
+# the ConfigMap copy over /config on every start (Frigate fills {FRIGATE_*} from env).
+# frigate.db, model_cache/ and yolov9/ stay on the hostPath, as do the recordings
+# under /mnt/main/nvr. Both GTX 1050 Ti are exposed via NVIDIA_VISIBLE_DEVICES=all
+# (one detector per GPU, shared with Plex's transcoder) rather than a
+# nvidia.com/gpu request, which would need exclusive allocation.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frigate
+  namespace: frigate
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate  # /config hostPath and the GPUs can't be shared by two pods
+  selector:
+    matchLabels:
+      app: frigate
+  template:
+    metadata:
+      labels:
+        app: frigate
+    spec:
+      runtimeClassName: nvidia  # injects the NVIDIA driver libraries
+      enableServiceLinks: false  # the "frigate" Service would inject FRIGATE_* env vars, which config.yaml substitution could pick up
+      terminationGracePeriodSeconds: 30
+      initContainers:
+      # Keeps the old config as .prev, writes the ConfigMap copy.
+      - name: render-config
+        image: busybox:1.37.0
+        command: ["sh", "-ec"]
+        args:
+        - |
+          dst=/config/config.yaml
+          [ ! -f "$dst" ] || cp -p "$dst" "$dst.prev"
+          cp /seed/config.yaml "$dst.tmp"
+          chown 1000:1000 "$dst.tmp" && chmod 644 "$dst.tmp"
+          mv "$dst.tmp" "$dst"
+        volumeMounts:
+        - name: config
+          mountPath: /config
+        - name: config-seed
+          mountPath: /seed
+          readOnly: true
+      containers:
+      - name: frigate
+        image: ghcr.io/blakeblackshear/frigate:0.16.1-tensorrt
+        securityContext:
+          privileged: true  # /dev/dri, /dev/nvidia*, as in the compose file
+        envFrom:
+        - secretRef:  # FRIGATE_RTSP_PASSWORD, FRIGATE_MQTT_PASSWORD, PLUS_API_KEY
+            name: frigate-secrets
+        env:
+        - name: NVIDIA_VISIBLE_DEVICES
+          value: all
+        - name: NVIDIA_DRIVER_CAPABILITIES
+          value: compute,video,utility
+        - name: TZ
+          value: America/Toronto
+        ports:
+        - name: ui
+          containerPort: 8971
+        - name: api  # unauthenticated; LAN-only via the frigate-lan LoadBalancer
+          containerPort: 5000
+        - name: go2rtc
+          containerPort: 1984
+        - name: rtsp
+          containerPort: 8554
+        - name: webrtc-tcp
+          containerPort: 8555
+          protocol: TCP
+        - name: webrtc-udp
+          containerPort: 8555
+          protocol: UDP
+        resources:
+          requests:
+            cpu: "1"
+            memory: 2Gi
+        volumeMounts:
+        - name: config
+          mountPath: /config
+        - name: recordings
+          mountPath: /media/frigate
+        - name: shm
+          mountPath: /dev/shm
+        - name: cache
+          mountPath: /tmp/cache
+      volumes:
+      - name: config
+        hostPath:
+          path: /mnt/main/config/frigate
+          type: Directory
+      - name: recordings
+        hostPath:
+          path: /mnt/main/nvr
+          type: Directory
+      - name: shm
+        emptyDir:
+          medium: Memory
+          sizeLimit: 512Mi
+      - name: cache
+        emptyDir:
+          medium: Memory
+          sizeLimit: 1Gi
+      - name: config-seed
+        configMap:
+          name: frigate-config

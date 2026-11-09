@@ -59,7 +59,7 @@ spec:
         hostPath:
           path: /mnt/main
           type: Directory
-      - name: stripe  # local ZFS pool (Frigate recordings)
+      - name: stripe  # local ZFS pool
         hostPath:
           path: /mnt/stripe
           type: Directory

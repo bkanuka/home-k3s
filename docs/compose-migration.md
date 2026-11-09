@@ -120,7 +120,7 @@ stirling-pdf, tautulli.
 | stirling-pdf | `configs/custom_settings.yml` | `configs/` (H2 db, key, cert), `tessdata/`, `customFiles/`, `pipeline/` | — | UI Google only |
 | filebrowser | `filebrowser.json` | `database.db`; `/mnt/main`, `/mnt/stripe`, `/mnt/working` | `/mnt/media`, `/mnt/nas` | UI Google; `/share/*`, `/api/public/*` exempt |
 | heimdall | none | `/mnt/main/config/heimdall` (`www/app.sqlite`) | — | Google; hostname `home.bkanuka.com` |
-| frigate | `config.yaml` (camera creds → placeholders); `PLUS_API_KEY` → SealedSecret | `/mnt/main/config/frigate` (`frigate.db` 1.3 GB, `model_cache/`, `yolov9/`); recordings `/mnt/stripe/nvr` | — | UI Google via `proxy.auth.header_map`; `:5000` unauthenticated on the LB IP |
+| frigate | `config.yaml` (camera creds → placeholders); `PLUS_API_KEY` → SealedSecret | `/mnt/main/config/frigate` (`frigate.db` 1.3 GB, `model_cache/`, `yolov9/`); recordings `/mnt/main/nvr` (11 TB) | — | UI Google via `proxy.auth.header_map`; `:5000` unauthenticated on the LB IP |
 
 Frigate extras: 1× `nvidia.com/gpu` (Plex has the other), `privileged`,
 `/dev/dri`, 512 MB `/dev/shm` (emptyDir Memory), 1 GB `/tmp/cache`

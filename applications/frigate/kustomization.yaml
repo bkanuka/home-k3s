@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# config.yaml is git-managed: edit it here, not in the Web UI (UI changes are
+# overwritten on the next start; the previous file is kept as config.yaml.prev).
+# Secrets are {FRIGATE_*} / PLUS_API_KEY env vars from the sealed frigate-secrets
+# Secret. Plaintext secrets (from *.yaml.example) are git-ignored; seal them with
+# platform/sealed-secrets/seal.sh. LAN ports live on 192.168.1.201 (platform/metallb).
+resources:
+- namespace.yaml
+- frigate-secrets-secret-sealed.yaml
+- deployment.yaml
+- service.yaml
+- httproute.yaml
+- authorizationpolicy.yaml  # Google login (oauth2-proxy)
+- allowlist.yaml            # which accounts may use this host
+
+configMapGenerator:
+- name: frigate-config  # hash suffix rolls the pod when the config changes
+  namespace: frigate
+  files:
+  - config.yaml

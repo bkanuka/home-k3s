@@ -84,8 +84,12 @@ Nothing here blocks the cluster; these are UI/external changes only the user can
 - [ ] **Paperless**: Postgres 15 → 18 (upstream) is a dump/restore of `pgdata`;
       do it deliberately, separately.
 - [ ] **ZFS**: `/mnt/main/config` has no snapshots — add a periodic snapshot task.
-- [ ] **Step 6 cutover** (after the homepage app is up): `sudo systemctl disable
-      --now nginx docker-compose@heimdall docker-compose@oauth2-proxy`.
+- [ ] **Step 6 cutover**: check https://home.bkanuka.com, then `sudo systemctl
+      disable --now nginx docker-compose@heimdall docker-compose@oauth2-proxy`.
+- [ ] **Homepage widgets needing your credentials** (stubs in
+      `applications/homepage/services.yaml`): qBittorrent WebUI password, Home
+      Assistant long-lived token, TrueNAS API key, Argo CD API token — add to
+      the secret (see `.yaml.example`), reseal, uncomment the widget.
 
 Decisions for step 6: no UniFi route (use 192.168.1.1 directly), no legacy
 `home.bkanuka.com/<app>` redirects.
@@ -148,10 +152,17 @@ Decisions for step 6: no UniFi route (use 192.168.1.1 directly), no legacy
       model. `chicken` is a Frigate+ *candidate* label: the models emit
       chickens as `bird`. Next model to request in Frigate+: type `yolov9`,
       size `s`, 320x320 (CUDA-graph accelerated in 0.17+; yolonas is not).
-- [ ] **6. heimdall** as the `home.bkanuka.com` root → cut nginx over → retire
-      nginx + compose oauth2-proxy. nginx also serves `unifi` (needs a k8s
-      equivalent like `applications/ha`'s ServiceEntry first) and a stale
-      `vouch` site.
+- [ ] **6. homepage replaces heimdall; retire nginx + compose oauth2-proxy** —
+      `applications/homepage/` (gethomepage.dev) is live on `home.bkanuka.com`
+      (gateway `https-apex` listener) and `homepage.home.bkanuka.com`, config in
+      git, widget keys sealed (2026-11-08). Heimdall was not migrated: its only
+      state was the tile list. nginx on the server is already unreachable by
+      name (every `*.home.bkanuka.com` and the apex resolve to the public IP,
+      which the router forwards to the gateway); `unifi`/`vouch` sites are dead
+      and are not being recreated.
+      Cutover (user): `sudo systemctl disable --now nginx docker-compose@heimdall docker-compose@oauth2-proxy`
+      Afterwards nothing from `/mnt/main/docker-compose` runs; the dirs and
+      `/mnt/main/config/{heimdall,oauth2-proxy}` can be archived or deleted.
 
 ## Per-app inventory
 

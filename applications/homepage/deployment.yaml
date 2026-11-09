@@ -1,6 +1,8 @@
 # Homepage (gethomepage.dev): the dashboard at home.bkanuka.com. All config is the
 # homepage-config ConfigMap (the *.yaml files here); API keys come from the sealed
-# homepage-secrets Secret via {{HOMEPAGE_VAR_...}} substitution. Stateless.
+# homepage-secrets Secret via {{HOMEPAGE_VAR_...}} substitution. Stateless. The
+# initContainer copies the ConfigMap into a writable emptyDir because Homepage
+# creates skeleton files for any config it considers required.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -18,6 +20,16 @@ spec:
     spec:
       serviceAccountName: homepage
       enableServiceLinks: false
+      initContainers:
+      - name: seed-config
+        image: busybox:1.37.0
+        command: ["sh", "-ec", "cp -L /seed/* /app/config/"]
+        volumeMounts:
+        - name: config-seed
+          mountPath: /seed
+          readOnly: true
+        - name: config
+          mountPath: /app/config
       containers:
       - name: homepage
         image: ghcr.io/gethomepage/homepage:latest
@@ -39,11 +51,9 @@ spec:
         volumeMounts:
         - name: config
           mountPath: /app/config
-        - name: logs
-          mountPath: /app/config/logs
       volumes:
-      - name: config
+      - name: config-seed
         configMap:
           name: homepage-config
-      - name: logs
+      - name: config
         emptyDir: {}

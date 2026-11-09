@@ -1,5 +1,5 @@
-# qBittorrent + PIA WireGuard VPN. qBittorrent.conf is git-managed: the
-# render-config initContainer writes the ConfigMap copy over /config on every start.
+# qBittorrent + PIA WireGuard VPN. The qBittorrent config files are git-managed: the
+# render-config initContainer writes the ConfigMap copies over /config on every start.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -18,18 +18,26 @@ spec:
         app: qbittorrent
     spec:
       initContainers:
-      # Keeps the old conf as .prev, writes the ConfigMap copy with the API key filled in.
+      # Keeps the old conf as .prev, writes the ConfigMap copies with the API key filled in.
+      # post-vpn-connect.sh goes to /config: the image sources it from there after the VPN is up.
       - name: render-config
         image: busybox:1.37.0
         command: ["sh", "-ec"]
         args:
         - |
-          dst=/config/qBittorrent/config/qBittorrent.conf
-          mkdir -p "$(dirname "$dst")"
-          [ ! -f "$dst" ] || cp -p "$dst" "$dst.prev"
-          sed "s|__WEBUI_API_KEY__|$WEBUI_API_KEY|" /seed/qBittorrent.conf > "$dst.tmp"
-          chown 1000:1000 "$dst.tmp" && chmod 600 "$dst.tmp"
-          mv "$dst.tmp" "$dst"
+          cfg=/config/qBittorrent/config
+          mkdir -p "$cfg"
+          install_file() {  # install_file <src> <dst>
+            cp "$1" "$2.tmp"
+            chown 1000:1000 "$2.tmp" && chmod 600 "$2.tmp"
+            mv "$2.tmp" "$2"
+          }
+          [ ! -f "$cfg/qBittorrent.conf" ] || cp -p "$cfg/qBittorrent.conf" "$cfg/qBittorrent.conf.prev"
+          sed "s|__WEBUI_API_KEY__|$WEBUI_API_KEY|" /seed/qBittorrent.conf > /tmp/qBittorrent.conf
+          install_file /tmp/qBittorrent.conf "$cfg/qBittorrent.conf"
+          install_file /seed/categories.json "$cfg/categories.json"
+          install_file /seed/watched_folders.json "$cfg/watched_folders.json"
+          install_file /seed/post-vpn-connect.sh /config/post-vpn-connect.sh
         env:
         - name: WEBUI_API_KEY
           valueFrom:
@@ -72,31 +80,23 @@ spec:
             cpu: 100m
             memory: 256Mi
         volumeMounts:
-        - name: complete
+        - name: media
           mountPath: /downloads/complete
-        - name: temp
+          subPath: Unsorted
+        - name: media
           mountPath: /downloads/temp
+          subPath: Incomplete
         - name: config
           mountPath: /config
-        - name: mam  # myanonamouse session cookie
-          mountPath: /mam
       volumes:
-      - name: complete
-        hostPath:
-          path: /mnt/media/Unsorted
-          type: Directory
-      - name: temp
-        hostPath:
-          path: /mnt/media/Incomplete
-          type: Directory
+      - name: media  # TrueNAS export
+        nfs:
+          server: 192.168.1.15
+          path: /mnt/main/media
       - name: config
         hostPath:
           path: /mnt/main/config/qbittorrent
           type: Directory
-      - name: mam
-        hostPath:
-          path: /mnt/main/config/qbittorrent/mam
-          type: DirectoryOrCreate
       - name: config-seed
         configMap:
           name: qbittorrent-config

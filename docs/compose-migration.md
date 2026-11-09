@@ -72,20 +72,17 @@ stirling-pdf, tautulli.
       removed in step 3**: `hostPort: 9117` and `BasePathOverride: /jackett`
       (+ the `/` → `/jackett/` redirect in httproute.yaml), because the compose
       Sonarr/Radarr call `192.168.1.10:9117/jackett/...`.
-- [ ] **3. radarr, sonarr** — `applications/{sonarr,radarr}/` pushed; `UrlBase`
-      cleared; `/api/*` and `/feed/*` exempt from Google login.
-      Cutover: `sudo systemctl disable --now docker-compose@sonarr docker-compose@radarr`
-      Then, via their APIs (key read in-container from config.xml):
-      - indexers: baseUrl → `http://jackett.jackett.svc.cluster.local:9117/api/v2.0/indexers/<id>/results/torznab/`
-        (no `/jackett`) with a **new** Jackett API key (the old one was printed
-        in a Sonarr error message during step 2) — then re-seal jackett-apikey,
-        clear `BasePathOverride`, drop the hostPort and the `/` redirect.
-      - download client qBittorrent: `192.168.1.10:8973` (dead since the compose
-        pia-qbittorrent stopped) → `qbittorrent.qbittorrent.svc.cluster.local:8888`
-        (pod CIDR 10.42.0.0/16 is in qBittorrent's AuthSubnetWhitelist).
-      - Plex notification: `192.168.1.10:32400` (dead) → `plex.plex.svc.cluster.local:32400`.
-      Old URLs `home.bkanuka.com/sonarr|/radarr` stop working (new:
-      `sonarr.home.bkanuka.com`); update any mobile apps.
+- [x] **3. radarr, sonarr** (2026-11-08) — `applications/{sonarr,radarr}/`;
+      `UrlBase` cleared; `/api/*` and `/feed/*` exempt from Google login (app
+      validates the key). Via their APIs: indexers → `jackett.jackett.svc`
+      with a rotated Jackett key (old one had been printed in an error
+      message); download client → `qbittorrent.qbittorrent.svc:8888`; Jackett's
+      transitional hostPort/base path removed. **Leftover for the user**: the
+      Plex notification in both apps has an invalid Plex auth token
+      (pre-existing) — re-authenticate in Settings → Connect → Plex, host
+      `plex.plex.svc.cluster.local:32400`. Radarr's Kodi notification to
+      `osmc.home.bkanuka.com` 404s (pre-existing). Old `home.bkanuka.com/sonarr`
+      and `/radarr` URLs are gone.
 - [ ] **4. tautulli, paperless, stirling-pdf, filebrowser** (independent)
 - [ ] **5. frigate**
 - [ ] **6. heimdall** as the `home.bkanuka.com` root → cut nginx over → retire

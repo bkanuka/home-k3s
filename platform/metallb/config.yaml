@@ -1,5 +1,6 @@
-# One fixed IP for the shared gateway's LoadBalancer; the router forwards 80/443
-# to it. Must be unused on the LAN and outside the router's DHCP range.
+# .200: the shared gateway's LoadBalancer (the router forwards 80/443 to it).
+# .201: Frigate's LAN ports (applications/frigate). Both must be unused on the LAN
+# and outside the router's DHCP range.
 apiVersion: metallb.io/v1beta1
 kind: IPAddressPool
 metadata:
@@ -10,6 +11,7 @@ metadata:
 spec:
   addresses:
   - 192.168.1.200/32
+  - 192.168.1.201/32
 ---
 apiVersion: metallb.io/v1beta1
 kind: L2Advertisement

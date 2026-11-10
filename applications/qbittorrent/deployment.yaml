@@ -53,6 +53,23 @@ spec:
       containers:
       - name: qbittorrent
         image: j4ym0/pia-qbittorrent
+        # A container restart keeps the pod's network namespace, i.e. the previous run's
+        # kill-switch (OUTPUT DROP, only the old PIA server allowed) and dead WireGuard
+        # interface; the image fetches its PIA token before it resets the firewall, so
+        # clear both first (both iptables backends: the image picks one at run time).
+        # The image's baked-in PIA server list goes stale (TLS name mismatch on addKey),
+        # so replace it with the live one when that can be fetched.
+        command: ["sh", "-c"]
+        args:
+        - |
+          for ipt in "/usr/sbin/xtables-nft-multi iptables" "/usr/sbin/xtables-legacy-multi iptables"; do
+            for t in filter nat; do $ipt -t $t -F; $ipt -t $t -X; done
+            for c in INPUT OUTPUT FORWARD; do $ipt -P $c ACCEPT; done
+          done 2>/dev/null
+          ip link del pia 2>/dev/null
+          curl -sf -m 30 https://serverlist.piaservers.net/vpninfo/servers/v6 | head -1 > /tmp/data.json \
+            && jq -e .regions /tmp/data.json >/dev/null && mv /tmp/data.json /app/data.json
+          exec /app/entrypoint.sh
         securityContext:
           capabilities:
             add: ["NET_ADMIN"]  # WireGuard interface

@@ -52,7 +52,7 @@ spec:
           readOnly: true
       containers:
       - name: qbittorrent
-        image: j4ym0/pia-qbittorrent
+        image: j4ym0/pia-qbittorrent:5.2.2-alpine  # myanonamouse has not approved 5.3.x
         # A container restart keeps the pod's network namespace, i.e. the previous run's
         # kill-switch (OUTPUT DROP, only the old PIA server allowed) and dead WireGuard
         # interface; the image fetches its PIA token before it resets the firewall, so

@@ -7,7 +7,9 @@ kind: Kustomization
 # myanonamouse seedbox IP after the VPN comes up.
 # WebUI\APIKey is the __WEBUI_API_KEY__ placeholder, filled from the sealed
 # qbittorrent-apikey Secret; Session\Port is rewritten by the image to PIA's
-# forwarded port. Plaintext secrets (from *.yaml.example) are git-ignored; seal
+# forwarded port. WebUI settings live under [Preferences] as WebUI\<key> (the
+# 5.2 layout); qBittorrent 5.3 moved them to a [WebUI] section, so convert
+# them back when the image is upgraded. Plaintext secrets (from *.yaml.example) are git-ignored; seal
 # them with platform/sealed-secrets/seal.sh.
 resources:
 - namespace.yaml

@@ -4,6 +4,7 @@ metadata:
   name: httpbin
   namespace: httpbin
 spec:
+  revisionHistoryLimit: 1  # old ReplicaSets kept for rollout undo
   replicas: 1
   selector:
     matchLabels:

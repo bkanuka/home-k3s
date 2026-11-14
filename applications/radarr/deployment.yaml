@@ -6,6 +6,7 @@ metadata:
   name: radarr
   namespace: radarr
 spec:
+  revisionHistoryLimit: 1  # old ReplicaSets kept for rollout undo
   replicas: 1
   strategy:
     type: Recreate  # /config hostPath can't be shared by two pods

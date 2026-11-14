@@ -10,6 +10,7 @@ metadata:
   name: frigate
   namespace: frigate
 spec:
+  revisionHistoryLimit: 1  # old ReplicaSets kept for rollout undo
   replicas: 1
   strategy:
     type: Recreate  # /config hostPath and the GPUs can't be shared by two pods

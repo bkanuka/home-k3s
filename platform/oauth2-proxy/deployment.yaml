@@ -5,6 +5,7 @@ metadata:
   name: oauth2-proxy
   namespace: oauth2-proxy
 spec:
+  revisionHistoryLimit: 1  # old ReplicaSets kept for rollout undo
   replicas: 1
   selector:
     matchLabels:

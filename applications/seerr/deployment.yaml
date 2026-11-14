@@ -7,6 +7,7 @@ metadata:
   name: seerr
   namespace: seerr
 spec:
+  revisionHistoryLimit: 1  # old ReplicaSets kept for rollout undo
   replicas: 1
   strategy:
     type: Recreate  # /app/config hostPath can't be shared by two pods

@@ -5,6 +5,7 @@ metadata:
   name: redis
   namespace: paperless
 spec:
+  revisionHistoryLimit: 1  # old ReplicaSets kept for rollout undo
   replicas: 1
   strategy:
     type: Recreate

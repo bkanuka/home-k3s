@@ -6,6 +6,7 @@ metadata:
   name: stirling-pdf
   namespace: stirling-pdf
 spec:
+  revisionHistoryLimit: 1  # old ReplicaSets kept for rollout undo
   replicas: 1
   strategy:
     type: Recreate  # hostPaths can't be shared by two pods

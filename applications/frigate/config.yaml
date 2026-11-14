@@ -1,9 +1,7 @@
 
 mqtt:
   enabled: true
-
-  #host: ha.home.bkanuka.com
-  host: 192.168.1.204
+  host: ha.home.bkanuka.com  # resolves via UniFi (the host's DNS points at the router)
   topic_prefix: frigate
 
   user: mqtt

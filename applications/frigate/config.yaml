@@ -48,6 +48,12 @@ cameras:
     objects:
       track:
         - person
+    motion:
+      mask:
+        tree:  # branches at the top right
+          friendly_name: Tree
+          enabled: true
+          coordinates: 0.557,0.004,0.556,0.26,0.638,0.322,1,0.207,1,0
   chicken_coop_1:
     enabled: true
     ffmpeg:

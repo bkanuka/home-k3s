@@ -195,3 +195,7 @@ auth:
 proxy:
   header_map:
     user: x-auth-request-email
+    role: x-auth-request-email  # role_map matches on the email; others fall back to viewer
+    role_map:
+      admin:
+        - bkanuka@gmail.com

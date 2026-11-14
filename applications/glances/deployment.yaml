@@ -1,0 +1,65 @@
+# Glances: host monitor for the k3s server, web UI at glances.home.bkanuka.com.
+# Privileged in the host's PID and network namespaces with the host's / at /rootfs,
+# so it sees host processes, interfaces, filesystems and disks (SMART). The Ubuntu
+# image is needed for GPU stats: the NVML library the nvidia runtime injects is
+# glibc-only. hostNetwork means :61208 is also open, unauthenticated, on the LAN.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: glances
+  namespace: glances
+spec:
+  revisionHistoryLimit: 1  # old ReplicaSets kept for rollout undo
+  replicas: 1
+  strategy:
+    type: Recreate  # hostNetwork: a second pod can't bind :61208
+  selector:
+    matchLabels:
+      app: glances
+  template:
+    metadata:
+      labels:
+        app: glances
+    spec:
+      hostNetwork: true
+      hostPID: true
+      runtimeClassName: nvidia  # injects the NVIDIA driver libraries
+      enableServiceLinks: false
+      containers:
+      - name: glances
+        image: nicolargo/glances:ubuntu-4.5.9-full
+        securityContext:
+          privileged: true  # raw disk access for SMART
+        env:
+        - name: GLANCES_OPT
+          value: -C /etc/glances/glances.conf -w
+        # Both GPUs, monitoring only; no nvidia.com/gpu request, as in Frigate and Plex.
+        - name: NVIDIA_VISIBLE_DEVICES
+          value: all
+        - name: NVIDIA_DRIVER_CAPABILITIES
+          value: utility
+        - name: TZ
+          value: America/Toronto
+        ports:
+        - name: http
+          containerPort: 61208
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+        volumeMounts:
+        - name: config
+          mountPath: /etc/glances
+          readOnly: true
+        - name: rootfs
+          mountPath: /rootfs
+          readOnly: true
+          mountPropagation: HostToContainer  # pick up host mounts made after start
+      volumes:
+      - name: config
+        configMap:
+          name: glances-config
+      - name: rootfs
+        hostPath:
+          path: /
+          type: Directory

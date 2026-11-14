@@ -54,7 +54,10 @@
         href: https://jackett.home.bkanuka.com
         description: Indexers
         siteMonitor: http://jackett.jackett.svc.cluster.local:9117/UI/Login
-        # No widget: it needs a Jackett admin password, which is not set.
+        widget:
+          type: jackett
+          url: http://jackett.jackett.svc.cluster.local:9117
+          password: "{{HOMEPAGE_VAR_JACKETT_PASSWORD}}"
 - Home:
     - Home Assistant:
         icon: home-assistant.png
@@ -79,6 +82,11 @@
         href: https://192.168.1.1
         description: Router
         siteMonitor: https://192.168.1.1
+        widget:
+          type: unifi
+          url: https://192.168.1.1
+          username: "{{HOMEPAGE_VAR_UNIFI_USERNAME}}"  # local view-only admin
+          password: "{{HOMEPAGE_VAR_UNIFI_PASSWORD}}"
     - TrueNAS:
         icon: truenas-scale.png
         href: https://192.168.1.15

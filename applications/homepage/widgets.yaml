@@ -13,6 +13,10 @@
       cpu: true
       memory: true
       showLabel: true
+- unifi_console:
+    url: https://192.168.1.1
+    username: "{{HOMEPAGE_VAR_UNIFI_USERNAME}}"
+    password: "{{HOMEPAGE_VAR_UNIFI_PASSWORD}}"
 - datetime:
     text_size: xl
     format:

@@ -29,12 +29,20 @@ else
 fi
 
 # ── k3s ───────────────────────────────────────────────────────────────────────
-# Installs k3s-config.yaml as the server config on every run; k3s reads it only at start.
-echo "==> Installing k3s config to /etc/rancher/k3s/config.yaml..."
+# Installs k3s-config.yaml (server config) and k3s-resolv.conf (pod DNS upstream)
+# on every run; k3s reads both only at start.
+echo "==> Installing k3s config to /etc/rancher/k3s/..."
 sudo mkdir -p /etc/rancher/k3s
-if ! sudo cmp -s "$DIR/k3s-config.yaml" /etc/rancher/k3s/config.yaml; then
-    sudo install -m 644 "$DIR/k3s-config.yaml" /etc/rancher/k3s/config.yaml
-    [ ! -x /usr/local/bin/k3s ] || echo "    config changed — run 'sudo systemctl restart k3s' to apply it"
+changed=0
+for f in k3s-config.yaml:config.yaml k3s-resolv.conf:resolv.conf; do
+    src="$DIR/${f%%:*}"; dst="/etc/rancher/k3s/${f##*:}"
+    if ! sudo cmp -s "$src" "$dst"; then
+        sudo install -m 644 "$src" "$dst"
+        changed=1
+    fi
+done
+if [ "$changed" = 1 ] && [ -x /usr/local/bin/k3s ]; then
+    echo "    config changed — run 'sudo systemctl restart k3s' to apply it"
 fi
 if ! command -v k3s >/dev/null 2>&1; then
     echo "==> Installing k3s..."

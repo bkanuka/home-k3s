@@ -4,3 +4,10 @@ disable:
   - traefik    # replaced by Istio ingress (platform/istio)
   - servicelb  # replaced by MetalLB (platform/metallb)
 write-kubeconfig-mode: "0644"  # kubeconfig readable without sudo
+# Pods get k3s-resolv.conf (router only, no search domain) instead of the host's
+# resolv.conf: with ndots:5 the host's "search home.bkanuka.com" plus the public
+# wildcard *.home.bkanuka.com resolved any unmatched name to the WAN IP, even
+# cluster FQDNs such as plex.plex.svc.cluster.local. Applies to pods created
+# after the restart; CoreDNS forwards to the same file.
+kubelet-arg:
+  - resolv-conf=/etc/rancher/k3s/resolv.conf

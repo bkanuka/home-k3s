@@ -157,8 +157,9 @@ minus `*-sealed.yaml`); `seal.sh` refuses to seal a file git would track.
 
 | Path            | Purpose                                                            |
 | --------------- | ----------------------------------------------------------------- |
-| `install.sh`    | Bootstrap: installs `k3s-config.yaml`, installs k3s, restores the Sealed Secrets key, applies Argo CD. Nothing else. |
-| `k3s-config.yaml` | The k3s server config (`/etc/rancher/k3s/config.yaml`): disables `traefik` + `servicelb`, kubeconfig mode. |
+| `install.sh`    | Bootstrap: installs `k3s-config.yaml` + `k3s-resolv.conf`, installs k3s, restores the Sealed Secrets key, applies Argo CD. Nothing else. |
+| `k3s-config.yaml` | The k3s server config (`/etc/rancher/k3s/config.yaml`): disables `traefik` + `servicelb`, kubeconfig mode, kubelet `resolv-conf`. |
+| `k3s-resolv.conf` | Pod DNS upstream (`/etc/rancher/k3s/resolv.conf`): the router only, no search domain — the host's `search home.bkanuka.com` plus the public wildcard record would otherwise resolve unmatched names (even cluster FQDNs, with `ndots:5`) to the WAN IP. |
 | `.githooks/`    | `pre-commit` hook that blocks plaintext `kind: Secret` manifests / private keys (`git config core.hooksPath .githooks`). |
 | `platform/`     | **Argo CD-managed cluster plumbing** — one folder = one Application (`platform` ApplicationSet). |
 | `platform/gateway-api/` | Gateway API CRDs (experimental channel, for `TCPRoute`), from the pinned upstream release. |

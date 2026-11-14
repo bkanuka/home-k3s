@@ -47,6 +47,9 @@ cameras:
           roles:
             - detect
             - record
+    objects:
+      track:
+        - person
   chicken_coop_1:
     enabled: true
     ffmpeg:
@@ -88,6 +91,12 @@ cameras:
       threshold: 31
       contour_area: 35
       improve_contrast: true
+    objects:
+      track:
+        - person
+        - dog
+        - chicken
+        - bird  # chickens come out as bird until the Frigate+ label graduates
     live:
       streams:
         4 MP: chicken_run

@@ -64,7 +64,7 @@ stirling-pdf, tautulli.
 
 Nothing here blocks the cluster; these are UI/external changes only the user can make.
 
-- [ ] **Home Assistant**: Frigate integration host `192.168.1.10:5000` → `192.168.1.201:5000`.
+- [x] **Home Assistant** (2026-11-14): Frigate integration host `192.168.1.10:5000` → `192.168.1.201:5000`.
 - [ ] **Frigate+**: request a new model — type `yolov9`, size `s`, 320x320 — and
       paste the ID into `applications/frigate/config.yaml` (`model.path`). The
       current `e9f2bb62…` is yolonas 320 from the 2025-07-23 training.

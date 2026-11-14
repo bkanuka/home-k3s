@@ -28,7 +28,10 @@ spec:
           value: "1000"
         - name: VERSION
           value: docker
-        # NVIDIA_VISIBLE_DEVICES is set by the device plugin to the allocated GPU
+        # GPU 1 only: Frigate decodes on GPU 0 (applications/frigate). No nvidia.com/gpu
+        # request, so the device plugin is bypassed, as in Frigate.
+        - name: NVIDIA_VISIBLE_DEVICES
+          value: "1"
         - name: NVIDIA_DRIVER_CAPABILITIES
           value: all
         ports:
@@ -38,8 +41,6 @@ spec:
           requests:
             cpu: 100m
             memory: 512Mi
-          limits:
-            nvidia.com/gpu: 1  # must be a limit, not a request
         volumeMounts:
         - name: config
           mountPath: /config

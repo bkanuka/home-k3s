@@ -1,5 +1,5 @@
-# NVIDIA device plugin (upstream static manifest): advertises nvidia.com/gpu so
-# pods such as Plex can request a GPU for hardware transcoding.
+# NVIDIA device plugin (upstream static manifest): advertises nvidia.com/gpu for
+# pods that want an exclusively allocated GPU. See kustomization.yaml.
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:

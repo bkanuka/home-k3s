@@ -2,8 +2,8 @@
 # the ConfigMap copy over /config on every start (Frigate fills {FRIGATE_*} from env).
 # frigate.db, model_cache/ and yolov9/ stay on the hostPath, as do the recordings
 # under /mnt/main/nvr. Both GTX 1050 Ti are exposed via NVIDIA_VISIBLE_DEVICES=all
-# (one detector per GPU, shared with Plex's transcoder) rather than a
-# nvidia.com/gpu request, which would need exclusive allocation.
+# (one detector per GPU; ffmpeg decodes on GPU 0) rather than a nvidia.com/gpu
+# request, which would need exclusive allocation. Plex is pinned to GPU 1.
 apiVersion: apps/v1
 kind: Deployment
 metadata:

@@ -5,6 +5,9 @@ kind: Kustomization
 # them here, not in the Web UI (UI changes are overwritten on the next start; the
 # previous conf is kept as qBittorrent.conf.prev). post-vpn-connect.sh refreshes the
 # myanonamouse seedbox IP after the VPN comes up.
+# Categories: radarr/sonarr keep their label after import (no "imported" category)
+# and inherit the global share limit (21 days, then stop), after which the *arr
+# removes the torrent and its data; audiobooks (myanonamouse) seed without limit.
 # WebUI\APIKey is the __WEBUI_API_KEY__ placeholder, filled from the sealed
 # qbittorrent-apikey Secret; Session\Port is rewritten by the image to PIA's
 # forwarded port. WebUI settings live under [Preferences] as WebUI\<key> (the

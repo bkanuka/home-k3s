@@ -4,7 +4,7 @@
   "AllowExternal": true,
   "AllowCORS": false,
   "APIKey": "__JACKETT_API_KEY__",
-  "AdminPassword": null,
+  "AdminPassword": "__JACKETT_ADMIN_PASSWORD__",
   "InstanceId": "yno1jgnezwba43u6fvtaue0ld1xr1eqqqg2u627z5k4vqb8sjkv3in5e9eevi1gf",
   "BlackholeDir": "",
   "UpdateDisabled": true,

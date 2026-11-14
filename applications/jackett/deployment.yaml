@@ -20,7 +20,8 @@ spec:
         app: jackett
     spec:
       initContainers:
-      # Keeps the old config as .prev, writes the ConfigMap copy with the API key filled in.
+      # Keeps the old config as .prev, writes the ConfigMap copy with the API key and
+      # admin password hash filled in (no hash in the Secret = no admin password).
       - name: render-config
         image: busybox:1.37.0
         command: ["sh", "-ec"]
@@ -29,7 +30,9 @@ spec:
           dst=/config/Jackett/ServerConfig.json
           mkdir -p "$(dirname "$dst")"
           [ ! -f "$dst" ] || cp -p "$dst" "$dst.prev"
-          sed "s|__JACKETT_API_KEY__|$JACKETT_API_KEY|" /seed/ServerConfig.json > "$dst.tmp"
+          if [ -n "$JACKETT_ADMIN_PASSWORD" ]; then pw="\"$JACKETT_ADMIN_PASSWORD\""; else pw=null; fi
+          sed -e "s|__JACKETT_API_KEY__|$JACKETT_API_KEY|" \
+              -e "s|\"__JACKETT_ADMIN_PASSWORD__\"|$pw|" /seed/ServerConfig.json > "$dst.tmp"
           chown 1000:1000 "$dst.tmp" && chmod 600 "$dst.tmp"
           mv "$dst.tmp" "$dst"
         env:
@@ -38,6 +41,12 @@ spec:
             secretKeyRef:
               name: jackett-apikey
               key: JACKETT_API_KEY
+        - name: JACKETT_ADMIN_PASSWORD  # the hash Jackett stores, not the password
+          valueFrom:
+            secretKeyRef:
+              name: jackett-apikey
+              key: JACKETT_ADMIN_PASSWORD
+              optional: true
         volumeMounts:
         - name: config
           mountPath: /config

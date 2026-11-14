@@ -65,7 +65,7 @@ echo "    Node ready."
 if [ -f "$SEALED_SECRETS_KEY_BACKUP" ]; then
     echo "==> Restoring Sealed Secrets sealing key from $SEALED_SECRETS_KEY_BACKUP..."
     kubectl create namespace sealed-secrets --dry-run=client -o yaml | kubectl apply -f -
-    kubectl apply -f "$SEALED_SECRETS_KEY_BACKUP"
+    sudo cat "$SEALED_SECRETS_KEY_BACKUP" | kubectl apply -f -  # the backup is 0600 root
 fi
 
 # ── Argo CD ─────────────────────────────────────────────────────────────────────

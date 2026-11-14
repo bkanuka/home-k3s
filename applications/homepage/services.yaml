@@ -134,15 +134,6 @@
 # The k3s server, from Glances (applications/glances) and Scrutiny (applications/scrutiny).
 # fs: ids are mount points as Glances sees them (host / is at /rootfs).
 - Server:
-    - System:
-        icon: glances.png
-        href: https://glances.home.bkanuka.com
-        widget:
-          type: glances
-          url: http://glances.glances.svc.cluster.local:61208
-          version: 4
-          metric: info
-          chart: false
     - CPU:
         icon: glances.png
         href: https://glances.home.bkanuka.com

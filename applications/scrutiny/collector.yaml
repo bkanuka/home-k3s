@@ -1,0 +1,38 @@
+# Scrutiny collector config, copied to /opt/scrutiny/config/collector.yaml on start.
+# Reference: https://github.com/AnalogJ/scrutiny/blob/master/example.collector.yaml
+version: 1
+
+host:
+  id: server
+
+# All disks are SATA behind a SAS HBA: `smartctl --scan` reports them as `-d scsi`,
+# which returns no ATA SMART attributes, so force SAT.
+devices:
+  - device: /dev/sda
+    type: sat
+  - device: /dev/sdb
+    type: sat
+  - device: /dev/sdc
+    type: sat
+  - device: /dev/sdd
+    type: sat
+  - device: /dev/sde
+    type: sat
+  - device: /dev/sdf
+    type: sat
+  - device: /dev/sdg
+    type: sat
+  - device: /dev/sdh
+    type: sat
+  - device: /dev/sdi
+    type: sat
+  - device: /dev/sdj
+    type: sat
+  - device: /dev/sdk
+    type: sat
+  - device: /dev/sdl
+    type: sat
+  - device: /dev/sdm
+    type: sat
+  - device: /dev/sdn
+    type: sat

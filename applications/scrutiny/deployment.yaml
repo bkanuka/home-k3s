@@ -1,0 +1,65 @@
+# Scrutiny (SMART disk health) for the k3s server's disks, at scrutiny.home.bkanuka.com.
+# Omnibus image: web UI, collector (cron) and InfluxDB in one container. scrutiny.db
+# and InfluxDB live on the hostPath; collector.yaml comes from the ConfigMap.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scrutiny
+  namespace: scrutiny
+spec:
+  revisionHistoryLimit: 1  # old ReplicaSets kept for rollout undo
+  replicas: 1
+  strategy:
+    type: Recreate  # hostPath databases can't be shared by two pods
+  selector:
+    matchLabels:
+      app: scrutiny
+  template:
+    metadata:
+      labels:
+        app: scrutiny
+    spec:
+      enableServiceLinks: false
+      containers:
+      - name: scrutiny
+        image: ghcr.io/analogj/scrutiny:v0.10.0-omnibus
+        securityContext:
+          privileged: true  # host /dev/sd* and raw SMART access
+        env:
+        - name: COLLECTOR_CRON_SCHEDULE
+          value: "0 * * * *"  # hourly; the default is daily
+        - name: TZ
+          value: America/Toronto
+        ports:
+        - name: http
+          containerPort: 8080
+        resources:
+          requests:
+            cpu: 50m
+            memory: 256Mi
+        volumeMounts:
+        - name: data
+          mountPath: /opt/scrutiny/config
+          subPath: config
+        - name: data
+          mountPath: /opt/scrutiny/influxdb
+          subPath: influxdb
+        - name: collector-config
+          mountPath: /opt/scrutiny/config/collector.yaml
+          subPath: collector.yaml
+          readOnly: true
+        - name: udev  # device metadata (serials, WWNs) for the collector
+          mountPath: /run/udev
+          readOnly: true
+      volumes:
+      - name: data
+        hostPath:
+          path: /mnt/main/config/scrutiny
+          type: DirectoryOrCreate
+      - name: collector-config
+        configMap:
+          name: scrutiny-config
+      - name: udev
+        hostPath:
+          path: /run/udev
+          type: Directory

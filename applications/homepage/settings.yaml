@@ -19,3 +19,6 @@ layout:
   Cluster:
     style: row
     columns: 4
+  Server:
+    style: row
+    columns: 4

@@ -131,3 +131,93 @@
         icon: istio.png
         href: https://home.bkanuka.com
         description: 192.168.1.200 (Istio) / 192.168.1.201 (Frigate)
+# The k3s server, from Glances (applications/glances) and Scrutiny (applications/scrutiny).
+# fs: ids are mount points as Glances sees them (host / is at /rootfs).
+- Server:
+    - System:
+        icon: glances.png
+        href: https://glances.home.bkanuka.com
+        widget:
+          type: glances
+          url: http://glances.glances.svc.cluster.local:61208
+          version: 4
+          metric: info
+          chart: false
+    - CPU:
+        icon: glances.png
+        href: https://glances.home.bkanuka.com
+        widget:
+          type: glances
+          url: http://glances.glances.svc.cluster.local:61208
+          version: 4
+          metric: cpu
+    - Memory:
+        icon: glances.png
+        href: https://glances.home.bkanuka.com
+        widget:
+          type: glances
+          url: http://glances.glances.svc.cluster.local:61208
+          version: 4
+          metric: memory
+    - Network:
+        icon: glances.png
+        href: https://glances.home.bkanuka.com
+        widget:
+          type: glances
+          url: http://glances.glances.svc.cluster.local:61208
+          version: 4
+          metric: network:br0
+    - CPU temperature:
+        icon: glances.png
+        href: https://glances.home.bkanuka.com
+        widget:
+          type: glances
+          url: http://glances.glances.svc.cluster.local:61208
+          version: 4
+          metric: sensor:Package id 0
+    - GPU 0:
+        icon: nvidia.png
+        href: https://glances.home.bkanuka.com
+        description: Frigate
+        widget:
+          type: glances
+          url: http://glances.glances.svc.cluster.local:61208
+          version: 4
+          metric: gpu:nvidia0
+    - GPU 1:
+        icon: nvidia.png
+        href: https://glances.home.bkanuka.com
+        description: Plex
+        widget:
+          type: glances
+          url: http://glances.glances.svc.cluster.local:61208
+          version: 4
+          metric: gpu:nvidia1
+    - main:
+        icon: mdi-harddisk
+        href: https://glances.home.bkanuka.com
+        description: ZFS raidz2
+        widget:
+          type: glances
+          url: http://glances.glances.svc.cluster.local:61208
+          version: 4
+          metric: fs:/rootfs/mnt/main
+          chart: false
+    - stripe:
+        icon: mdi-harddisk
+        href: https://glances.home.bkanuka.com
+        description: ZFS stripe, no redundancy
+        widget:
+          type: glances
+          url: http://glances.glances.svc.cluster.local:61208
+          version: 4
+          metric: fs:/rootfs/mnt/stripe
+          chart: false
+    - Scrutiny:
+        icon: scrutiny.png
+        href: https://scrutiny.home.bkanuka.com
+        description: Disk health (SMART)
+        siteMonitor: http://scrutiny.scrutiny.svc.cluster.local:8080/api/health
+        widget:
+          type: scrutiny
+          url: http://scrutiny.scrutiny.svc.cluster.local:8080

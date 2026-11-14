@@ -48,6 +48,7 @@
           url: http://qbittorrent.qbittorrent.svc.cluster.local:8888
           username: admin
           password: "{{HOMEPAGE_VAR_QBITTORRENT_PASSWORD}}"
+          enableLeechProgress: true  # list active downloads
     - Jackett:
         icon: jackett.png
         href: https://jackett.home.bkanuka.com
@@ -87,6 +88,8 @@
           type: truenas
           url: https://192.168.1.15
           key: "{{HOMEPAGE_VAR_TRUENAS_KEY}}"
+          enablePools: true
+          nasType: scale
 - Documents:
     - Paperless:
         icon: paperless-ngx.png

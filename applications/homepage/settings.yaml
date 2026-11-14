@@ -5,6 +5,10 @@ color: slate
 headerStyle: clean
 hideVersion: true
 statusStyle: dot
+# Start typing anywhere to jump to a service; Enter on no match searches the web.
+quicklaunch:
+  searchDescriptions: true
+  provider: duckduckgo
 base: https://home.bkanuka.com
 layout:
   Media:

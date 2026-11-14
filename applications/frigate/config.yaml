@@ -63,10 +63,19 @@ cameras:
           roles:
             - detect
             - record
+    detect:  # close-up view; chickens are large enough at this size
+      width: 640
+      height: 360
     objects:
       track:
         - chicken
         - bird
+    motion:
+      mask:
+        swing:  # hanging chains
+          friendly_name: swing
+          enabled: true
+          coordinates: 0.387,0.906,0.381,0,0.42,0,0.453,0.782,0.523,0.875,0.59,0,0.632,0,0.564,0.912,0.591,0.946,0.57,1,0.444,1
   chicken_coop_2:
     enabled: true
     ffmpeg:
@@ -78,10 +87,19 @@ cameras:
           roles:
             - detect
             - record
+    detect:  # close-up view; chickens are large enough at this size
+      width: 640
+      height: 360
     objects:
       track:
         - chicken
         - bird
+    motion:
+      mask:
+        swing:  # hanging chains
+          friendly_name: swing
+          enabled: true
+          coordinates: 0.389,0,0.463,0.682,0.616,0.684,0.7,0,0.673,0,0.593,0.549,0.489,0.55,0.41,0
   chicken_run:
     enabled: true
     ffmpeg:
@@ -150,8 +168,8 @@ go2rtc:
 # Alerts are what needs a look (people, predators); chickens/birds are detections.
 detect:
   enabled: true
-  width: 1280
-  height: 720
+  width: 960
+  height: 540
   fps: 5
 review:
   alerts:
@@ -166,6 +184,10 @@ objects:
     - dog
     - cat
     - bird
+  filters:
+    bird:  # default threshold 0.7, min_score 0.5; coops gave false birds at 57-75%
+      min_score: 0.55
+      threshold: 0.75
 record:
   enabled: True
   motion:  # continuous recording is off; keep motion segments 10 days

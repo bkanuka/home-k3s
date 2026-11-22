@@ -82,9 +82,8 @@ Nothing here blocks the cluster; these are UI/external changes only the user can
       `osmc.home.bkanuka.com` 404s — fix or delete.)
 - [ ] **Sonarr/Radarr/Tautulli/Paperless bookmarks & phone apps**: old
       `home.bkanuka.com/<app>` paths are gone; use `<app>.home.bkanuka.com`.
-- [ ] **Cameras** (optional): set substreams to 1280x720 @ 5 fps (how-to comment
-      above `detect:` in `applications/frigate/config.yaml`), then ask for the
-      detect-on-substream change.
+- [x] **Cameras** (2026-11-21): every camera detects on its substream (640x360 /
+      640x480, the largest they offer); chicken_run's main stream is 1080p.
 - [ ] **Cameras** (optional): rotate the admin password (it was echoed in an ffprobe
       error during the migration); then reseal `frigate-secrets` (see the
       `.yaml.example`) and commit.

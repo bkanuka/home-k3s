@@ -43,8 +43,11 @@ cameras:
         - path: rtsp://127.0.0.1:8554/backyard
           input_args: preset-rtsp-restream
           roles:
-            - detect
             - record
+        - path: rtsp://127.0.0.1:8554/backyard_sub
+          input_args: preset-rtsp-restream
+          roles:
+            - detect
     objects:
       track:
         - person
@@ -61,11 +64,11 @@ cameras:
         - path: rtsp://127.0.0.1:8554/chicken_coop_1
           input_args: preset-rtsp-restream
           roles:
-            - detect
             - record
-    detect:  # close-up view; chickens are large enough at this size
-      width: 640
-      height: 360
+        - path: rtsp://127.0.0.1:8554/chicken_coop_1_sub
+          input_args: preset-rtsp-restream
+          roles:
+            - detect
     objects:
       track:
         - chicken
@@ -85,11 +88,11 @@ cameras:
         - path: rtsp://127.0.0.1:8554/chicken_coop_2
           input_args: preset-rtsp-restream
           roles:
-            - detect
             - record
-    detect:  # close-up view; chickens are large enough at this size
-      width: 640
-      height: 360
+        - path: rtsp://127.0.0.1:8554/chicken_coop_2_sub
+          input_args: preset-rtsp-restream
+          roles:
+            - detect
     objects:
       track:
         - chicken
@@ -112,9 +115,6 @@ cameras:
           input_args: preset-rtsp-restream
           roles:
             - detect
-    detect:  # the substream's size (the camera's maximum)
-      width: 640
-      height: 360
     motion:
       threshold: 31
       contour_area: 35
@@ -134,43 +134,29 @@ go2rtc:
   streams:
     backyard:
       - rtsp://admin:{FRIGATE_RTSP_PASSWORD}@192.168.1.187:554/Streaming/Channels/101
+    backyard_sub:
+      - rtsp://admin:{FRIGATE_RTSP_PASSWORD}@192.168.1.187:554/Streaming/Channels/102
     chicken_coop_1:
       - rtsp://admin:{FRIGATE_RTSP_PASSWORD}@192.168.1.150:554/Streaming/Channels/101
+    chicken_coop_1_sub:
+      - rtsp://admin:{FRIGATE_RTSP_PASSWORD}@192.168.1.150:554/Streaming/Channels/102
     chicken_coop_2:
       - rtsp://admin:{FRIGATE_RTSP_PASSWORD}@192.168.1.246:554/cam/realmonitor?channel=1&subtype=0
+    chicken_coop_2_sub:
+      - rtsp://admin:{FRIGATE_RTSP_PASSWORD}@192.168.1.246:554/cam/realmonitor?channel=1&subtype=1
     chicken_run:
       - rtsp://admin:{FRIGATE_RTSP_PASSWORD}@192.168.1.156:554/Streaming/Channels/101
-    chicken_run_sub:  # 640x360, 6 fps
+    chicken_run_sub:
       - rtsp://admin:{FRIGATE_RTSP_PASSWORD}@192.168.1.156:554/Streaming/Channels/102
 
-# chicken_run detects on its substream. The others detect on the main streams
-# because their substreams are too small (backyard 640x480, chicken_coop_1
-# 352x240, chicken_coop_2 none). To move one to a substream:
-#   1. On each camera set the substream to 1280x720, 5 fps, H.264:
-#        Hikvision (.187 .150 .156): Configuration > Video/Audio > Sub-stream
-#          -> rtsp://admin:...@<ip>:554/Streaming/Channels/102
-#        Dahua (.246): Setting > Camera > Video > Sub Stream (enable it)
-#          -> rtsp://admin:...@192.168.1.246:554/cam/realmonitor?channel=1&subtype=1
-#   2. Add a go2rtc stream per camera, e.g.
-#        backyard_sub:
-#          - rtsp://admin:{FRIGATE_RTSP_PASSWORD}@192.168.1.187:554/Streaming/Channels/102
-#   3. Split the camera's inputs:
-#        - path: rtsp://127.0.0.1:8554/backyard
-#          input_args: preset-rtsp-restream
-#          roles: [record]
-#        - path: rtsp://127.0.0.1:8554/backyard_sub
-#          input_args: preset-rtsp-restream
-#          roles: [detect]
-#      and keep detect.width/height equal to the substream's resolution.
-#   Verify the stream first from the pod (password is in the env):
-#     kubectl -n frigate exec deploy/frigate -- sh -c '/usr/lib/ffmpeg/7.0/bin/ffprobe -v error \
-#       -rtsp_transport tcp -show_entries stream=codec_name,width,height -of csv=p=0 \
-#       "rtsp://admin:$FRIGATE_RTSP_PASSWORD@192.168.1.187:554/Streaming/Channels/102" 2>&1 | sed "s#admin:[^@]*@#admin:<pw>@#"'
+# Every camera records its main stream and detects on its substream (5-6 fps).
+# chicken_run's is 640x360; the others send the 16:9 picture squeezed into
+# 640x480 (the largest they offer) and detect scales it back to 16:9.
 # Alerts are what needs a look (people, predators); chickens/birds are detections.
 detect:
   enabled: true
-  width: 960
-  height: 540
+  width: 640
+  height: 360
   fps: 5
 review:
   alerts:

@@ -72,7 +72,10 @@ cameras:
       track:
         - chicken
         - bird
-    motion:
+    motion:  # less sensitive than the default: IR noise at night counted as motion
+      threshold: 40
+      contour_area: 30
+      improve_contrast: false
       mask:
         swing:  # hanging chains
           friendly_name: swing
@@ -96,7 +99,10 @@ cameras:
       track:
         - chicken
         - bird
-    motion:
+    motion:  # less sensitive than the default: IR noise at night counted as motion
+      threshold: 40
+      contour_area: 30
+      improve_contrast: false
       mask:
         swing:  # hanging chains
           friendly_name: swing

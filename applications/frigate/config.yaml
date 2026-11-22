@@ -21,7 +21,7 @@ detectors:
 
 ffmpeg:
   hwaccel_args: preset-nvidia
-  path: "7.0"  # FFmpeg 8 (0.18 default) breaks go2rtc's #hardware transcode (chicken_run_1080)
+  path: "7.0"  # FFmpeg 8 (0.18 default) breaks go2rtc's #hardware transcode
 
   #model:
   #model_type: yolonas
@@ -107,8 +107,14 @@ cameras:
         - path: rtsp://127.0.0.1:8554/chicken_run
           input_args: preset-rtsp-restream
           roles:
-            - detect
             - record
+        - path: rtsp://127.0.0.1:8554/chicken_run_sub
+          input_args: preset-rtsp-restream
+          roles:
+            - detect
+    detect:  # the substream's size (the camera's maximum)
+      width: 640
+      height: 360
     motion:
       threshold: 31
       contour_area: 35
@@ -119,10 +125,6 @@ cameras:
         - dog
         - chicken
         - bird  # chickens come out as bird until the Frigate+ label graduates
-    live:
-      streams:
-        4 MP: chicken_run
-        1080p: chicken_run_1080
 
 go2rtc:
   webrtc:
@@ -138,13 +140,12 @@ go2rtc:
       - rtsp://admin:{FRIGATE_RTSP_PASSWORD}@192.168.1.246:554/cam/realmonitor?channel=1&subtype=0
     chicken_run:
       - rtsp://admin:{FRIGATE_RTSP_PASSWORD}@192.168.1.156:554/Streaming/Channels/101
-    chicken_run_1080:  # GPU-transcoded live view of the 4 MP stream (not used for record/detect)
-      - "ffmpeg:chicken_run#video=h264#width=1920#height=1080#hardware"
+    chicken_run_sub:  # 640x360, 6 fps
+      - rtsp://admin:{FRIGATE_RTSP_PASSWORD}@192.168.1.156:554/Streaming/Channels/102
 
-# detect runs on the main streams because the substreams are too small (as of
-# 2026-11-08: backyard 640x480, chicken_coop_1 352x240, chicken_run 640x360,
-# chicken_coop_2 none). To move detection to substreams (cuts decode load, mainly
-# chicken_run's 4 MP stream):
+# chicken_run detects on its substream. The others detect on the main streams
+# because their substreams are too small (backyard 640x480, chicken_coop_1
+# 352x240, chicken_coop_2 none). To move one to a substream:
 #   1. On each camera set the substream to 1280x720, 5 fps, H.264:
 #        Hikvision (.187 .150 .156): Configuration > Video/Audio > Sub-stream
 #          -> rtsp://admin:...@<ip>:554/Streaming/Channels/102

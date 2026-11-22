@@ -21,7 +21,6 @@ detectors:
 
 ffmpeg:
   hwaccel_args: preset-nvidia
-  path: "7.0"  # FFmpeg 8 (0.18 default) breaks go2rtc's #hardware transcode
 
   #model:
   #model_type: yolonas

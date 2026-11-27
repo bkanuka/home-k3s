@@ -77,6 +77,11 @@
           type: frigate
           url: http://frigate-lan.frigate.svc.cluster.local:5000
           enableRecentEvents: true
+    - ESPHome:
+        icon: esphome.png
+        href: https://esphome.home.bkanuka.com
+        description: Device Builder / remote build server
+        siteMonitor: http://esphome.esphome.svc.cluster.local:6052
     - UniFi:
         icon: unifi.png
         href: https://192.168.1.1

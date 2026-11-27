@@ -1,0 +1,57 @@
+# Headless ESPHome remote build servers (--remote-build-only, no dashboard). Each
+# compiles one job at a time; a paired Device Builder (the HA add-on) sends each build
+# to the least-busy server, so `replicas` builds run at once. Pod N listens on
+# 192.168.1.10:(6055+N) on the host network; the peer link is Noise-encrypted and
+# only paired senders can use it. Each pod keeps its own identity, pairings and
+# PlatformIO cache under /mnt/main/config/esphome-builder/<pod name>.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: esphome-builder
+  namespace: esphome
+spec:
+  replicas: 4
+  podManagementPolicy: Parallel
+  revisionHistoryLimit: 1
+  selector:
+    matchLabels:
+      app: esphome-builder
+  template:
+    metadata:
+      labels:
+        app: esphome-builder
+    spec:
+      hostNetwork: true
+      enableServiceLinks: false
+      containers:
+      - name: esphome-builder
+        image: ghcr.io/esphome/esphome:2026.11.1
+        # Until first paired, logs a one-time pairing key and exits after 15 minutes
+        # (the restart opens a new window with a new key).
+        command: ["sh", "-c"]
+        args:
+        - exec /entrypoint.sh dashboard --remote-build-only --remote-build-port "$((6055 + POD_INDEX))" /config
+        env:
+        - name: TZ
+          value: America/Toronto
+        - name: POD_INDEX
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.labels['apps.kubernetes.io/pod-index']
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        resources:
+          requests:
+            cpu: 100m
+            memory: 512Mi
+        volumeMounts:
+        - name: data
+          mountPath: /config
+          subPathExpr: $(POD_NAME)
+      volumes:
+      - name: data
+        hostPath:
+          path: /mnt/main/config/esphome-builder
+          type: DirectoryOrCreate

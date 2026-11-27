@@ -3,8 +3,4 @@ kind: Kustomization
 
 resources:
 - namespace.yaml
-- deployment.yaml
-- service.yaml
-- httproute.yaml
-- authorizationpolicy.yaml  # Google login (oauth2-proxy)
-- allowlist.yaml            # which accounts may use this host
+- statefulset.yaml
